@@ -5,6 +5,7 @@ TODOs:
 - [ ] Implement the experimenter and the environment
 - [ ] Implement the SEAC algorithm
 - [ ] Reproduce the results of the paper
+- [ ] Add environments with continuous action space to the pipeline
 - [ ] Write the pseudocode of the SESAC algorithm
 - [ ] Write the Midway report
 - [ ] Implement SESAC algorithm
