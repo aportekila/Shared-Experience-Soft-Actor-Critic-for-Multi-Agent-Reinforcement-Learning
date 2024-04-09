@@ -67,7 +67,7 @@ class ActorPolicyNet(nn.Module):
                 nn.init.xavier_normal_(layer.weight)
                 nn.init.zeros_(layer.bias)
 
-    def forward(self, x):
+    def forward(self, x) -> torch.distributions.Categorical:
         x = self.arch(x)
         if self.is_discrete:
             return FixedCategorical(logits=x)
