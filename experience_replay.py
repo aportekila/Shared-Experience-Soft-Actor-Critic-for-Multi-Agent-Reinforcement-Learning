@@ -18,11 +18,12 @@ class ExperienceReplay(object):
     def sample_tensor(self, batch_size: int, device: str) -> (
             tuple)[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         state, action, reward, next_state, done = self.sample(batch_size)
-        return (torch.tensor(state, device=device),
-                torch.tensor(action, device=device),
-                torch.tensor(reward, device=device),
-                torch.tensor(next_state, device=device),
-                torch.tensor(done, device=device)
+
+        return (torch.tensor(np.array(state), device=device),
+                torch.tensor(np.array(action), device=device),
+                torch.tensor(np.array(reward), device=device),
+                torch.tensor(np.array(next_state), device=device),
+                torch.tensor(np.array(done), device=device)
                 )
 
     def __len__(self) -> int:
