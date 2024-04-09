@@ -35,7 +35,32 @@ class ACAgent(object):
         self.memory.push(state, action, reward, next_state, int(done))
 
     def learn(self, num_steps=50):
-        raise NotImplementedError("Not implemented")
+        for it in range(num_steps):
+            states, actions, rewards, next_states, dones = self.memory.sample(self.batch_size)
+
+            log_props = self.actor.forward(states).log_prob(actions)
+            state_values = self.critic.forward(states)
+            next_state_values = self.critic_target.forward(next_states)
+
+            # Estimate advantage
+            advantages = rewards + self.gamma * next_state_values - state_values
+            # Disregard advantage in gradient calculation for actor
+            actor_loss = -log_props * advantages.detach()
+
+            # 'advantages' is just the td errors, take mean squared error.
+            critic_loss = torch.square(advantages).mean()
+
+            self.actor_optimizer.zero_grad()
+            actor_loss.backward()
+            self.actor_optimizer.step()
+
+            self.critic_optimizer.zero_grad()
+            critic_loss.backward()
+            self.critic_optimizer.step()
+
+            # Critic target soft update
+            self.soft_update()
+
 
     def save(self, path):
         params = {
