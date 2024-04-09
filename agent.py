@@ -43,14 +43,16 @@ class ACAgent(object):
         for it in range(num_steps):
             states, actions, rewards, next_states, dones = self.memory.sample_tensor(self.batch_size, self.device)
 
-            log_props = self.actor.forward(states).log_prob(actions).view(self.batch_size)
+            dist = self.actor.forward(states)
+            log_props = dist.log_prob(actions).view(self.batch_size)
+            entropy = dist.entropy().mean()
             state_values = self.critic.forward(states).view(self.batch_size)
             next_state_values = self.critic_target.forward(next_states).view(self.batch_size)
 
             # Estimate advantage
             advantages = rewards + self.gamma * next_state_values - state_values
             # Disregard advantage in gradient calculation for actor
-            actor_loss = torch.inner(-log_props.type(torch.float64), advantages.detach())
+            actor_loss = torch.inner(-log_props.type(torch.float64), advantages.detach()) - entropy * self.entropy_coeff
 
             # 'advantages' is just the td errors, take mean squared error.
             critic_loss = torch.square(advantages).mean()
@@ -85,28 +87,10 @@ class ACAgent(object):
 
 
 class SEACAgent(ACAgent):
-    def __init__(self, lambda_value=1.0, **kwargs):
+    def __init__(self, agent_list, lambda_value=1.0, **kwargs):
         super(SEACAgent, self).__init__(**kwargs)
+        self.agent_list = agent_list
         self.lambda_value = lambda_value
 
     def learn(self, other_memories=None):
         raise NotImplementedError("TODO: Implement the learn method")
-
-
-class SNACAgent(object):
-    def __init__(self, actor, critic, critic_target, actor_optimizer, critic_optimizer, capacity, device, gamma=0.99,
-                 entropy_coeff=0.01, value_loss_coeff=0.5, grad_clip=0.5):
-        self.device = device
-        self.gamma = gamma
-        self.entropy_coeff = entropy_coeff
-        self.value_loss_coeff = value_loss_coeff
-        self.grad_clip = grad_clip
-
-        self.memory = ExperienceReplay(capacity)
-
-        self.actor = actor
-        self.critic = critic
-        self.critic_target = critic_target
-
-        self.actor_optimizer = actor_optimizer
-        self.critic_optimizer = critic_optimizer
