@@ -25,27 +25,32 @@ class ACAgent(object):
         self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), lr=learning_rate, eps=adam_eps)
         self.critic_optimizer = torch.optim.Adam(self.critic.parameters(), lr=learning_rate, eps=adam_eps)
 
-    def act(self, state: np.ndarray) -> np.integer:
+    def act(self, state: np.ndarray, training=False) -> np.integer:
         state = torch.FloatTensor(state).to(self.device)
-        with torch.no_grad():
-            action = self.actor(state).mode()
-        return action.cpu().numpy()
+        if training:
+            with torch.no_grad():
+                action = self.actor.forward(state).sample()
+            return action.cpu().numpy()
+        else:
+            with torch.no_grad():
+                action = self.actor(state).mode()
+            return action.cpu().numpy()
 
     def remember(self, state, action, reward, next_state, done):
         self.memory.push(state, action, reward, next_state, int(done))
 
     def learn(self, num_steps=50):
         for it in range(num_steps):
-            states, actions, rewards, next_states, dones = self.memory.sample(self.batch_size)
+            states, actions, rewards, next_states, dones = self.memory.sample_tensor(self.batch_size, self.device)
 
-            log_props = self.actor.forward(states).log_prob(actions)
-            state_values = self.critic.forward(states)
-            next_state_values = self.critic_target.forward(next_states)
+            log_props = self.actor.forward(states).log_prob(actions).view(self.batch_size)
+            state_values = self.critic.forward(states).view(self.batch_size)
+            next_state_values = self.critic_target.forward(next_states).view(self.batch_size)
 
             # Estimate advantage
             advantages = rewards + self.gamma * next_state_values - state_values
             # Disregard advantage in gradient calculation for actor
-            actor_loss = -log_props * advantages.detach()
+            actor_loss = torch.inner(-log_props.type(torch.float64), advantages.detach())
 
             # 'advantages' is just the td errors, take mean squared error.
             critic_loss = torch.square(advantages).mean()
@@ -60,7 +65,6 @@ class ACAgent(object):
 
             # Critic target soft update
             self.soft_update()
-
 
     def save(self, path):
         params = {
