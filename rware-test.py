@@ -1,10 +1,14 @@
 import rware
 import gymnasium as gym
+from tqdm import tqdm
+
 from agent import ACAgent
 import torch
 import numpy as np
 
-MAX_EPISODE_LENGTH = 100
+
+TOTAL_ENV_STEPS = 50000000
+MAX_EPISODE_LENGTH = 500
 
 env = gym.make("rware-small-4ag-v1")
 
@@ -12,7 +16,7 @@ env = gym.make("rware-small-4ag-v1")
 agents = [ACAgent(env.observation_space[i].shape[0], env.action_space[i].n, 5000, "cuda") for i in range(env.n_agents)]
 
 # training loop
-for i in range(100):
+for i in tqdm(range(int(TOTAL_ENV_STEPS/MAX_EPISODE_LENGTH))):
     states, info = env.reset()
     done = False
     episode_reward = 0
@@ -34,9 +38,10 @@ for i in range(100):
         episode_length += 1
         episode_reward += np.sum(rewards)
 
-        env.render()
+        # env.render()
 
-    print(episode_length, episode_reward)
     for agent in agents:
-        agent.learn()
+        agent.learn(num_steps=10)
         agent.memory.memory.clear()
+        if i % 1000 == 0:
+            agent.save(f"weights_{i}.pth")
