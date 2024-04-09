@@ -70,6 +70,6 @@ class ActorPolicyNet(nn.Module):
     def forward(self, x) -> torch.distributions.Categorical:
         x = self.arch(x)
         if self.is_discrete:
-            return FixedCategorical(logits=x)
+            return torch.distributions.Categorical(logits=x)
         else:
             raise NotImplementedError('ActorPolicyNet only supports discrete actions')
