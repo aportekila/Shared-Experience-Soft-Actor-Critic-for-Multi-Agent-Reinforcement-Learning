@@ -1,6 +1,7 @@
 import argparse
 import os
 import torch
+import json
 
 from experimenter import create_experiment
 
@@ -17,10 +18,10 @@ if __name__ == "__main__":
     argparser.add_argument("--pretrain_path", type=str, default=None)
     argparser.add_argument("--save_path", type=str, default="logs/")
     argparser.add_argument("--seed", type=int, default=0)
-    argparser.add_argument("--evaluate_frequency", type=int, default=10)
+    argparser.add_argument("--evaluate_frequency", type=int, default=100)
     argparser.add_argument("--evaluate_episodes", type=int, default=5)
     
-    argparser.add_argument("--num_gradient_steps", type=int, default=10)
+    argparser.add_argument("--num_gradient_steps", type=int, default=5)
     argparser.add_argument("--batch_size", type=int, default=256)
     argparser.add_argument("--verbose", type=int, default=0, choices=[0, 1, 2])
     
@@ -38,7 +39,10 @@ if __name__ == "__main__":
     
     args.save_path = f"{args.save_path}/{args.env}/{args.agent_type}/{args.seed}"
     os.makedirs(args.save_path, exist_ok=True)
-    
+    # Save arguments
+    with open(os.path.join(args.save_path, "args.json"), "w") as f:
+        json.dump(vars(args), f, indent=4)
+
     experimenter = create_experiment(args)
     experimenter.run(args)
     
