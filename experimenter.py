@@ -58,7 +58,7 @@ class Experimenter(object):
         for agent in self.agents:
             agent.memory.memory.clear()
 
-    def evaluate_policies(self, num_repetitions: int = 10, render: bool = False) -> np.float64:
+    def evaluate_policies(self, num_repetitions: int = 10, render: bool = False) -> dict:
         for agent in self.agents:
             agent.eval()
         
@@ -99,8 +99,8 @@ class Experimenter(object):
                     for agent_id, agent in enumerate(self.agents):
                         agent.save(f"{self.save_path}/agent_{agent_id}.pth")
                     
-        # save results
-        np.save(f"{self.save_path}/experiment_history.npy", self.experiment_history)
+                    # save results periodically
+                    np.save(f"{self.save_path}/experiment_history.npy", self.experiment_history)
         
         
 
@@ -151,7 +151,7 @@ def create_experiment(args) -> Experimenter:
             agent_list.append(agent)
             
     if args.pretrain_path is not None:
-        for agent in agent_list:
-            agent.load(f"{args.pretrain_path}/agent_{agent.agent_id}.pth")
+        for agent_id, agent in enumerate(agent_list):
+            agent.load(f"{args.pretrain_path}/agent_{agent_id}.pth")
 
     return Experimenter(env, agent_list, save_path, episode_max_length=episode_max_length)
