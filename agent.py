@@ -24,11 +24,11 @@ class ACAgent(object):
 
         self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), lr=learning_rate, eps=adam_eps)
         self.critic_optimizer = torch.optim.Adam(self.critic.parameters(), lr=learning_rate, eps=adam_eps)
-        
+
     def eval(self):
         self.actor.eval()
         self.critic.eval()
-        
+
     def train(self):
         self.actor.train()
         self.critic.train()
@@ -46,32 +46,32 @@ class ACAgent(object):
 
     def remember(self, state, action, reward, next_state, done):
         self.memory.push(state, action, reward, next_state, int(done))
-        
-    def calculate_loss_terms(self, states, actions, rewards, next_states, dones):
+
+    def calculate_loss_terms(self, states, actions, rewards, next_states, dones) -> (
+    torch.Tensor, torch.Tensor, torch.Tensor):
         dist = self.actor.forward(states)
         log_props = dist.log_prob(actions).view(self.batch_size)
         entropy = dist.entropy()
         state_values = self.critic.forward(states).view(self.batch_size)
-        
+
         with torch.no_grad():
             next_state_values = self.critic_target.forward(next_states).view(self.batch_size)
 
-        # TODO: Estimate advantage with Monte Carlo return
+        #  TODO: Estimate advantage with Monte Carlo return
         # Estimate advantage
-        advantages = rewards + self.gamma * next_state_values - state_values
-        
+        advantages = rewards + (1-dones) * self.gamma * next_state_values - state_values
+
         return log_props, entropy, advantages
-        
-    def calculate_loss(self, states, actions, rewards, next_states, dones):
+
+    def calculate_loss(self, states, actions, rewards, next_states, dones) -> (torch.float32, torch.float32):
         log_props, entropy, advantages = self.calculate_loss_terms(states, actions, rewards, next_states, dones)
         # Disregard advantage in gradient calculation for actor
         actor_loss = ((-log_props * advantages.detach()) - entropy * self.entropy_coeff).mean()
 
         # 'advantages' is just the td errors, take mean squared error.
         critic_loss = self.value_loss_coeff * torch.square(advantages).mean()
-        
+
         return actor_loss, critic_loss
-        
 
     def learn(self, num_steps=50):
         for it in range(num_steps):
@@ -118,16 +118,15 @@ class SEACAgent(ACAgent):
             states, actions, rewards, next_states, dones = self.memory.sample_tensor(self.batch_size, self.device)
             log_props = self.actor.forward(states).log_prob(actions).view(self.batch_size)
             actor_loss, critic_loss = self.calculate_loss(states, actions, rewards, next_states, dones)
-            
+
             for agent in self.agent_list:
                 if agent != self:
-                    log_props_i, _, advantages_i = agent.calculate_loss_terms(states, actions, rewards, next_states, dones)
+                    log_props_i, _, advantages_i = agent.calculate_loss_terms(states, actions, rewards, next_states,
+                                                                              dones)
                     importance_weight = (log_props.exp() / (log_props_i.exp() + 1e-7)).detach()
-                    
+
                     actor_loss += self.lambda_value * (importance_weight * log_props * advantages_i.detach()).mean()
                     critic_loss += self.lambda_value * (importance_weight * torch.square(advantages_i)).mean()
-                    
-                    
 
             self.actor_optimizer.zero_grad()
             actor_loss.backward()
