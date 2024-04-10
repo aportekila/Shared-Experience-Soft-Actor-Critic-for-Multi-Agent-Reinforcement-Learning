@@ -22,7 +22,7 @@ if __name__ == "__main__":
     
     argparser.add_argument("--num_gradient_steps", type=int, default=10)
     argparser.add_argument("--batch_size", type=int, default=256)
-    
+    argparser.add_argument("--verbose", type=int, default=0, choices=[0, 1, 2])
     
     argparser.add_argument("--render", default=False, action="store_true")
     
@@ -32,7 +32,7 @@ if __name__ == "__main__":
     
     args = argparser.parse_args()
     args.device = "cuda" if torch.cuda.is_available() else "cpu"
-    
+    args.device = "cpu" # GPU overhead is greater than speedup gains
     # TODO: delete
     # args.render = True
     
