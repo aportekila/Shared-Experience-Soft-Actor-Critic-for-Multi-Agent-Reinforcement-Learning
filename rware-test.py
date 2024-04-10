@@ -12,7 +12,8 @@ MAX_EPISODE_LENGTH = 500
 env = gym.make("rware-small-4ag-v1")
 
 # observation space is a tuple containing spaces for each agent
-agents = [ACAgent(env.observation_space[i].shape[0], env.action_space[i].n, 5000, "cuda") for i in range(env.n_agents)]
+device = "cuda" if torch.cuda.is_available() else "cpu"
+agents = [ACAgent(env.observation_space[i].shape[0], env.action_space[i].n, 5000, device) for i in range(env.n_agents)]
 
 for agent in agents:
     agent.load("weights_31000.pth")
@@ -24,10 +25,8 @@ for i in tqdm(range(int(TOTAL_ENV_STEPS / MAX_EPISODE_LENGTH))):
     episode_reward = 0
     episode_length = 0
     while not done:
-        actions = []
-        for idx, agent in enumerate(agents):
-            action = agent.act(states[idx], training=True)
-            actions.append(action)
+        # act
+        actions = [agent.act(states[idx], training=True) for idx, agent in enumerate(agents)]
 
         next_states, rewards, dones, info = env.step(actions)
 
