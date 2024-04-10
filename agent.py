@@ -55,7 +55,7 @@ class ACAgent(object):
             actor_loss = torch.inner(-log_props.type(torch.float64), advantages.detach()) - entropy * self.entropy_coeff
 
             # 'advantages' is just the td errors, take mean squared error.
-            critic_loss = torch.square(advantages).mean()
+            critic_loss = self.value_loss_coeff * torch.square(advantages).mean()
 
             self.actor_optimizer.zero_grad()
             actor_loss.backward()
