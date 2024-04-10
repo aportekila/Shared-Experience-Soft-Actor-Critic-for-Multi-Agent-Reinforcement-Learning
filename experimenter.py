@@ -44,7 +44,7 @@ class Experimenter(object):
             episode_length += 1
             episode_reward += np.sum(rewards)
 
-            if True or render:
+            if render:
                 self.env.render()
 
         return episode_reward, episode_length
@@ -85,7 +85,9 @@ class Experimenter(object):
                 self.generate_episode(training=True)
             else:
                 reward, _ = self.generate_episode(training=True)
-                print(f"Episode {episode}: {reward}")
+                # TODO: logger?
+                if args.verbose > 0:
+                    print(f"Episode {episode}: {reward}")
                 self.learn(num_steps=args.num_gradient_steps)
                 self.clear_experience()
                 
