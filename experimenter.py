@@ -7,7 +7,7 @@ from agent import ACAgent, SEACAgent
 
 
 class Experimenter(object):
-    def __init__(self, env: gym.Env, agents: list[ACAgent], episode_max_length: int = 500, ):
+    def __init__(self, env: gym.Env, agents: list[ACAgent], episode_max_length: int = 500):
         self.env = env
         self.agents = agents
         self.episode_max_length = episode_max_length
@@ -70,6 +70,7 @@ def create_experiment(env_name: str,
     env = gym.make(env_name)
 
     # TODO: Support for multiple lists / teams (e.g. team based where a subset of agents have access to each other)
+    # TODO: This is implemented in the 'if agent_type == ...' branches.
     agent_list = []
 
     # Individual agents with no access to each other
@@ -80,17 +81,18 @@ def create_experiment(env_name: str,
             agent_list.append(agent)
 
     # Several references to the same agent (shared network)
-    if agent_type == "SNAC":
-        agent = ACAgent(env.observation_space[i].shape[0], env.action_space[i].n,
+    elif agent_type == "SNAC":
+        agent = ACAgent(env.observation_space[0].shape[0], env.action_space[0].n,
                         capacity=capacity * num_agents, device=device)
         for i in range(num_agents):
             agent_list.append(agent)
 
     # Individual agents with access to each other
-    if agent_type == "SEAC":
-        agent = SEACAgent(env.observation_space[i].shape[0], env.action_space[i].n,
-                          capacity=capacity, device=device,
-                          agent_type=agent_list, lambda_value=se_lambda_value)
-        agent_list.append(agent)
+    elif agent_type == "SEAC":
+        for i in range(num_agents):
+            agent = SEACAgent(env.observation_space[i].shape[0], env.action_space[i].n,
+                              capacity=capacity, device=device,
+                              agent_type=agent_list, lambda_value=se_lambda_value)
+            agent_list.append(agent)
 
     return Experimenter(env, agent_list, episode_max_length=episode_max_length)
