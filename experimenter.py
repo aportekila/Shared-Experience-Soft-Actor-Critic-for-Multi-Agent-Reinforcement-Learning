@@ -1,8 +1,12 @@
-from typing import Literal
+import re
+from typing import Iterable
 
 import gymnasium as gym
+import pettingzoo
 import rware
+from lbforaging.foraging.pettingzoo_environment import parallel_env
 import numpy as np
+import torch
 from tqdm import tqdm
 
 from agent import ACAgent, SEACAgent
@@ -11,7 +15,12 @@ from agent import ACAgent, SEACAgent
 class Experimenter(object):
     def __init__(self, env: gym.Env, agents: list[ACAgent], save_path: str, episode_max_length: int = 500):
         self.env = env
+        self.env.reset() # required to instantiate some parts of pettingzoo envs
         self.agents = agents
+        if isinstance(env, pettingzoo.utils.conversions.aec_to_parallel_wrapper):
+            self.agent_dict = {env.aec_env.agents[i] : agents[i] for i in range(len(agents))}
+        else:
+            self.agent_dict = {i: agents[i] for i in range(len(agents))}
         self.episode_max_length = episode_max_length
         self.save_path = save_path
         self.experiment_history = {
@@ -29,15 +38,16 @@ class Experimenter(object):
         episode_reward = 0
         episode_length = 0
         while not done:
-            actions = [agent.act(states[idx], training=training) for idx, agent in enumerate(self.agents)]
+            actions = [agent.act(states[agent_id], training=training) for agent_id, agent in self.agent_dict.items()]
             # TODO: Add truncated and terminated return vals for old gym envs
             next_states, rewards, terminated, truncated, info = self.env.step(actions)
 
             done = np.all(terminated) or episode_length > self.episode_max_length
 
             if training:
-                for idx, agent in enumerate(self.agents):
-                    agent.remember(states[idx], actions[idx], rewards[idx], next_states[idx], done and 1 or 0)
+                for (agent_id, agent) in self.agent_dict.items():
+                    agent.remember(states[agent_id], actions[agent_id], rewards[agent_id],
+                                   next_states[agent_id], done and 1 or 0)
 
             states = next_states
             episode_length += 1
@@ -107,35 +117,67 @@ implemented_agent_types = ["IAC", "SNAC", "SEAC"]
 
 
 def create_experiment(args) -> Experimenter:
-    agent_type = args.agent_type
-    env_name = args.env
-    num_agents = args.num_agents
-    episode_max_length = args.episode_max_length
-    capacity = args.capacity
-    device = args.device
-    se_lambda_value = args.SEAC_lambda_value
-    save_path = args.save_path
-    batch_size = args.batch_size
+    agent_type: str = args.agent_type
+    env_name: str = args.env
+    num_agents: int = args.num_agents
+    episode_max_length: int = args.episode_max_length
+    capacity: int = args.capacity
+    device: torch.device = args.device
+    se_lambda_value: float = args.SEAC_lambda_value
+    save_path: str = args.save_path
+    batch_size: int = args.batch_size
 
     assert (agent_type in implemented_agent_types)
 
-    env = gym.make(env_name)
+    # Handle different env types:
+    if "foraging" in env_name.lower():
+        pattern = r'^Foraging-(\d+)x(\d+)-(\d+)p-(\d+)f-(\w+)$'
+        # Match the pattern against the environment name
+        match = re.match(pattern, env_name)
+        assert match
+        field_size = (int(match.group(1)), int(match.group(2)))  # Shape as a tuple
+        players = int(match.group(3))  # Extract the number of players
+        max_food = int(match.group(4))
+        # Magic numbers, these are default params in SEAC paper.
+        max_level = 3  # magic number, but this is what they use in paper.
+        sight = field_size[0]
+        max_episode_steps = episode_max_length  # Default is 50!
+        force_coop = False
+        env = parallel_env(players=players,
+                           max_player_level=max_level,
+                           field_size=field_size,
+                           max_food=max_food,
+                           sight=sight,
+                           max_episode_steps=max_episode_steps,
+                           force_coop=force_coop)
+    else:
+        env = gym.make(env_name)
 
     # TODO: Support for multiple lists / teams (e.g. team based where a subset of agents have access to each other)
     # TODO: This is implemented in the 'if agent_type == ...' branches.
     agent_list = []
 
+    # TODO: idk if todo, but would be nice to wrap rware in pettingzoo env.
+    if isinstance(env, pettingzoo.ParallelEnv):
+        agent0 = env.possible_agents[0]
+        obs_space = env.observation_spaces[agent0].shape[0]
+        action_space = env.action_spaces[agent0].n
+    elif isinstance(env.observation_space, Iterable):
+        obs_space = env.observation_space[0].shape[0]
+        action_space = env.action_space[0].n
+    else:
+        raise ValueError(f"Unsupported env type: {type(env)}")
+
     # Individual agents with no access to each other
     if agent_type == "IAC":
         for i in range(num_agents):
-            agent = ACAgent(env.observation_space[i].shape[0], env.action_space[i].n,
+            agent = ACAgent(obs_space, action_space,
                             capacity=capacity, device=device, batch_size=batch_size)
-
             agent_list.append(agent)
 
     # Several references to the same agent (shared network)
     elif agent_type == "SNAC":
-        agent = ACAgent(env.observation_space[0].shape[0], env.action_space[0].n,
+        agent = ACAgent(obs_space, action_space,
                         capacity=capacity * num_agents, device=device, batch_size=batch_size)
         for i in range(num_agents):
             agent_list.append(agent)
@@ -143,7 +185,7 @@ def create_experiment(args) -> Experimenter:
     # Individual agents with access to each other
     elif agent_type == "SEAC":
         for i in range(num_agents):
-            agent = SEACAgent(env.observation_space[i].shape[0], env.action_space[i].n,
+            agent = SEACAgent(obs_space, action_space,
                               capacity=capacity, device=device,
                               agent_list=agent_list, lambda_value=se_lambda_value, batch_size=batch_size)
             agent_list.append(agent)
