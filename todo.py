@@ -3,5 +3,5 @@
 # TODO Create LBF wrapper
 # TODO Continuous action space support
 # TODO Multiwalker env
-# TODO Verify set_seed implementation
+# TODO Verify set_seed implementation (currently only on initial reset)
 # TODO Debug SEAC / tune parameters

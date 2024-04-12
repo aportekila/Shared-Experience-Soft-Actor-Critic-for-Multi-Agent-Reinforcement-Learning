@@ -52,7 +52,8 @@ class ACAgent(object):
     def remember(self, state, action, reward, next_state, done):
         self.memory.push(state, action, reward, next_state, int(done))
 
-    def calculate_loss_terms(self, states, actions, rewards, next_states, dones) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def calculate_loss_terms(self, states, actions, rewards, next_states, dones) -> Tuple[
+        torch.Tensor, torch.Tensor, torch.Tensor]:
         dist = self.actor.forward(states)
         log_props = dist.log_prob(actions).view(self.batch_size)
         entropy = dist.entropy()
@@ -61,9 +62,8 @@ class ACAgent(object):
         with torch.no_grad():
             next_state_values = self.critic_target.forward(next_states).view(self.batch_size)
 
-        #  TODO: Estimate advantage with Monte Carlo return
         # Estimate advantage
-        advantages = rewards + (1-dones) * (self.gamma ** self.n_steps) * next_state_values - state_values
+        advantages = rewards + (1 - dones) * (self.gamma ** self.n_steps) * next_state_values - state_values
 
         return log_props, entropy, advantages
 

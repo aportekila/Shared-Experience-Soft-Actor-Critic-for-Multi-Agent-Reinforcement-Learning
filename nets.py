@@ -27,25 +27,6 @@ class CriticValueNet(nn.Module):
         return self.arch(x)
 
 
-#  TODO: Check the following code
-class FixedCategorical(torch.distributions.Categorical):
-    def sample(self):
-        return super().sample().unsqueeze(-1)
-
-    def log_probs(self, actions):
-        #  TODO: Check the following code
-        return (
-            super()
-            .log_prob(actions.squeeze(-1))
-            .view(actions.size(0), -1)
-            .sum(-1)
-            .unsqueeze(-1)
-        )
-
-    def mode(self):
-        return self.probs.argmax(dim=-1, keepdim=True)
-
-
 class ActorPolicyNet(nn.Module):
     def __init__(self, state_size, action_size, hidden_size=64, is_discrete=True):
         super(ActorPolicyNet, self).__init__()

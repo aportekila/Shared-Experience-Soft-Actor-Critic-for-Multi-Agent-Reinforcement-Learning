@@ -98,7 +98,6 @@ class Experimenter(object):
                 self.generate_episode(training=True)
             else:
                 reward, _ = self.generate_episode(training=True)
-                # TODO: logger?
                 if args.verbose > 0:
                     print(f"Episode {episode}: {reward}")
                 self.learn(num_steps=args.num_gradient_steps)
@@ -153,7 +152,6 @@ def create_experiment(args) -> Experimenter:
         env = ProjectBaseEnv()
 
     # TODO: Support for multiple lists / teams (e.g. team based where a subset of agents have access to each other)
-    # TODO: This is implemented in the 'if agent_type == ...' branches.
     agent_list = []
 
     env.reset(seed=seed)

@@ -9,7 +9,6 @@ from experimenter import create_experiment
 if __name__ == "__main__":
     argparser = argparse.ArgumentParser()
     argparser.add_argument("--env", type=str, default="Foraging-10x10-3p-3f-v2", choices=["rware-tiny-4ag-v1", "Foraging-10x10-3p-3f-v2"])
-    argparser.add_argument("--num_agents", type=int, default=4) # TODO: this shouldn't be hardcoded in the future (e.g. for different envs)
     argparser.add_argument("--agent_type", type=str, default="IAC", choices=["IAC", "SNAC", "SEAC", "SESAC"])
     argparser.add_argument("--episode_max_length", type=int, default=None)
     argparser.add_argument("--total_env_steps", type=int, default=50000000)
@@ -35,8 +34,6 @@ if __name__ == "__main__":
     args = argparser.parse_args()
     args.device = "cuda" if torch.cuda.is_available() else "cpu"
     args.device = "cpu" # GPU overhead is greater than speedup gains
-    # TODO: delete
-    # args.render = True
     
     args.save_path = f"{args.save_path}/{args.env}/{args.agent_type}/{args.n_steps}/{args.seed}"
     os.makedirs(args.save_path, exist_ok=True)
