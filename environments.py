@@ -52,7 +52,7 @@ class RwareEnvironment(ProjectBaseEnv):
             agent: self.observation_spaces[agent].shape[0] for agent in self.possible_agents
         }
 
-        self.action_spaces = {
+        self.action_shapes = {
             agent: self.action_spaces[agent].n for agent in self.possible_agents
         }
 
