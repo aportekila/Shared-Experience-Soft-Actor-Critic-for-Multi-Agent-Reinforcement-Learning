@@ -22,7 +22,7 @@ if __name__ == "__main__":
     
     argparser.add_argument("--num_gradient_steps", type=int, default=5)
     argparser.add_argument("--batch_size", type=int, default=128)
-    argparser.add_argument("--verbose", type=int, default=0, choices=[0, 1, 2])
+    argparser.add_argument("--verbose", type=int, default=1, choices=[0, 1, 2])
     
     argparser.add_argument("--render", default=False, action="store_true")
     
