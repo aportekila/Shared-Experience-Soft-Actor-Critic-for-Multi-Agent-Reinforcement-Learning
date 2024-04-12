@@ -132,7 +132,6 @@ implemented_agent_types = ["IAC", "SEAC"]
 def create_experiment(args) -> Experimenter:
     agent_type: str = args.agent_type
     env_name: str = args.env
-    num_agents: int = args.num_agents
     device: torch.device = args.device
     se_lambda_value: float = args.SEAC_lambda_value
     save_path: str = args.save_path
@@ -166,6 +165,7 @@ def create_experiment(args) -> Experimenter:
 
     # Several references to the same agent (shared network)
     elif agent_type == "SNAC":
+        num_agents = len(env.agents)
         #  TODO: update agent.py
         agent = ACAgent(env.observation_shapes[env.agents[0]], env.action_shapes[env.agents[0]],
                         episode_max_length=episode_max_length * num_agents, device=device, batch_size=batch_size,
