@@ -9,15 +9,15 @@ import torch
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 
-from environments import RwareEnvironment
+from environments import ProjectBaseEnv, RwareEnvironment
 from agent import ACAgent, SEACAgent
 
 
 class Experimenter(object):
-    def __init__(self, env: gym.Env, agents: list[ACAgent], save_path: str):
+    def __init__(self, env: ProjectBaseEnv, agents: list[ACAgent], save_path: str):
         self.env = env
-        self.agents = agents
-        self.agent_dict = {i: agents[i] for i in range(len(self.env.agents))} # FIXME
+        self.learning_agents = agents
+        self.agent_names = self.env.agents
         self.episode_max_length = self.env.max_steps
         self.save_path = save_path
         self.experiment_history = {
@@ -31,45 +31,48 @@ class Experimenter(object):
 
     def generate_episode(self, render: bool = False, training: bool = True) -> tuple[np.float64, int]:
         states, info = self.env.reset()
-        done = False
         episode_reward = 0
         episode_length = 0
-        while not done:
-            actions = [agent.act(states[agent_id], training=training) for agent_id, agent in self.agent_dict.items()]
-            # TODO: Add truncated and terminated return vals for old gym envs
-            next_states, rewards, terminated, truncated, info = self.env.step(actions)
+        # This is pettingzoo convention. List will be empty when done.
+        while self.env.agents:
+            # States is a dictionary with agent name as key
+            actions = {agent_id: agent.act(states[agent_id], training=training)
+                       for agent, agent_id in zip(self.learning_agents, self.agent_names)}
 
-            done = np.all(terminated) or np.all(truncated) or episode_length > self.episode_max_length
+            next_states, rewards, terminated, truncated, info = self.env.step(actions.values())
+
+            # I hope truncated actually works
+            done = np.all(list(terminated.values())) or np.all(list(truncated.values()))
 
             if training:
-                for (agent_id, agent) in self.agent_dict.items():
+                for agent, agent_id in zip(self.learning_agents, self.agent_names):
                     agent.remember(states[agent_id], actions[agent_id], rewards[agent_id],
                                    next_states[agent_id], done and 1 or 0)
 
             states = next_states
             episode_length += 1
-            episode_reward += np.sum(rewards)
+            episode_reward += np.sum(list(rewards.values()))
 
             if render:
                 self.env.render()
-                
+
         # n-step TD learning
         if training:
-            for agent in self.agents:
+            for agent in self.learning_agents:
                 agent.memory.convert_to_n_step(agent.n_steps, agent.gamma)
 
         return episode_reward, episode_length
 
     def learn(self, num_steps: int = 50):
-        for agent_id, agent in enumerate(self.agents):
+        for agent_id, agent in enumerate(self.learning_agents):
             agent.learn(num_steps=num_steps)
 
     def clear_experience(self):
-        for agent in self.agents:
+        for agent in self.learning_agents:
             agent.memory.clear()
 
     def evaluate_policies(self, num_repetitions: int = 10, render: bool = False) -> dict:
-        for agent in self.agents:
+        for agent in self.learning_agents:
             agent.eval()
 
         rewards, lengths = [], []
@@ -78,7 +81,7 @@ class Experimenter(object):
             rewards.append(episode_reward)
             lengths.append(episode_length)
 
-        for agent in self.agents:
+        for agent in self.learning_agents:
             agent.train()
 
         return {
@@ -108,7 +111,7 @@ class Experimenter(object):
                         print(f"{key}: {value}", end=" ")
                         self.experiment_history[key].append(value)
                     print()
-                    for agent_id, agent in enumerate(self.agents):
+                    for agent_id, agent in enumerate(self.learning_agents):
                         agent.save(f"{self.save_path}/agent_{agent_id}.pth")
 
                     # save results periodically
@@ -143,7 +146,7 @@ def create_experiment(args) -> Experimenter:
 
     # Handle different env types:
     if "rware" in env_name.lower():
-        env = RwareEnvironment(max_steps = episode_max_length)
+        env = RwareEnvironment(max_steps=episode_max_length)
     else:
         env = gym.make(env_name)
 
@@ -157,14 +160,16 @@ def create_experiment(args) -> Experimenter:
     if agent_type == "IAC":
         for agent in env.agents:
             agent = ACAgent(env.observation_shapes[agent], env.action_spaces[agent],
-                            episode_max_length=episode_max_length, device=device, batch_size=batch_size, n_steps=n_steps)
+                            episode_max_length=episode_max_length, device=device, batch_size=batch_size,
+                            n_steps=n_steps)
             agent_list.append(agent)
 
     # Several references to the same agent (shared network)
     elif agent_type == "SNAC":
-        # TODO: update agent.py
+        #  TODO: update agent.py
         agent = ACAgent(env.observation_shapes[env.agents[0]], env.action_spaces[env.agents[0]],
-                        episode_max_length=episode_max_length * num_agents, device=device, batch_size=batch_size, n_steps=n_steps)
+                        episode_max_length=episode_max_length * num_agents, device=device, batch_size=batch_size,
+                        n_steps=n_steps)
         for i in range(num_agents):
             agent_list.append(agent)
 
@@ -173,7 +178,8 @@ def create_experiment(args) -> Experimenter:
         for agent in env.agents:
             agent = SEACAgent(env.observation_shapes[agent], env.action_spaces[agent],
                               episode_max_length=episode_max_length, device=device,
-                              agent_list=agent_list, lambda_value=se_lambda_value, batch_size=batch_size, n_steps=n_steps)
+                              agent_list=agent_list, lambda_value=se_lambda_value, batch_size=batch_size,
+                              n_steps=n_steps)
             agent_list.append(agent)
 
     if args.pretrain_path is not None:
