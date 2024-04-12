@@ -4,10 +4,11 @@ from typing import Iterable
 import gymnasium as gym
 import pettingzoo
 import rware
-from lbforaging.foraging.pettingzoo_environment import parallel_env
+# from lbforaging.foraging.pettingzoo_environment import parallel_env
 import numpy as np
 import torch
 from tqdm import tqdm
+import matplotlib.pyplot as plt
 
 from agent import ACAgent, SEACAgent
 
@@ -42,7 +43,7 @@ class Experimenter(object):
             # TODO: Add truncated and terminated return vals for old gym envs
             next_states, rewards, terminated, truncated, info = self.env.step(actions)
 
-            done = np.all(terminated) or episode_length > self.episode_max_length
+            done = np.all(terminated) or np.all(truncated) or episode_length > self.episode_max_length
 
             if training:
                 for (agent_id, agent) in self.agent_dict.items():
@@ -55,6 +56,11 @@ class Experimenter(object):
 
             if render:
                 self.env.render()
+                
+        # n-step TD learning
+        if training:
+            for agent in self.agents:
+                agent.memory.convert_to_n_step(agent.n_steps, agent.gamma)
 
         return episode_reward, episode_length
 
@@ -64,7 +70,7 @@ class Experimenter(object):
 
     def clear_experience(self):
         for agent in self.agents:
-            agent.memory.memory.clear()
+            agent.memory.clear()
 
     def evaluate_policies(self, num_repetitions: int = 10, render: bool = False) -> dict:
         for agent in self.agents:
@@ -110,10 +116,19 @@ class Experimenter(object):
                         agent.save(f"{self.save_path}/agent_{agent_id}.pth")
 
                     # save results periodically
+                    mean_rewards = np.array(self.experiment_history["mean_reward"])
+                    std_rewards = np.array(self.experiment_history["std_reward"])
+                    x_axis = np.array(self.experiment_history["episode"]) * args.evaluate_episodes
+                    plt.plot(x_axis, mean_rewards)
+                    plt.fill_between(x_axis, mean_rewards - std_rewards, mean_rewards + std_rewards, alpha=0.2)
+                    plt.xlabel("Time Steps")
+                    plt.ylabel("Episode Rewards")
+                    plt.savefig(f"{self.save_path}/results.svg")
+                    plt.close()
                     np.save(f"{self.save_path}/experiment_history.npy", self.experiment_history)
 
 
-implemented_agent_types = ["IAC", "SNAC", "SEAC"]
+implemented_agent_types = ["IAC", "SEAC"]
 
 
 def create_experiment(args) -> Experimenter:
@@ -121,11 +136,11 @@ def create_experiment(args) -> Experimenter:
     env_name: str = args.env
     num_agents: int = args.num_agents
     episode_max_length: int = args.episode_max_length
-    capacity: int = args.capacity
     device: torch.device = args.device
     se_lambda_value: float = args.SEAC_lambda_value
     save_path: str = args.save_path
     batch_size: int = args.batch_size
+    n_steps: int = args.n_steps
 
     assert (agent_type in implemented_agent_types)
 
@@ -172,13 +187,14 @@ def create_experiment(args) -> Experimenter:
     if agent_type == "IAC":
         for i in range(num_agents):
             agent = ACAgent(obs_space, action_space,
-                            capacity=capacity, device=device, batch_size=batch_size)
+                            episode_max_length=episode_max_length, device=device, batch_size=batch_size, n_steps=n_steps)
             agent_list.append(agent)
 
     # Several references to the same agent (shared network)
     elif agent_type == "SNAC":
+        # TODO: update agent.py
         agent = ACAgent(obs_space, action_space,
-                        capacity=capacity * num_agents, device=device, batch_size=batch_size)
+                        episode_max_length=episode_max_length * num_agents, device=device, batch_size=batch_size, n_steps=n_steps)
         for i in range(num_agents):
             agent_list.append(agent)
 
@@ -186,8 +202,8 @@ def create_experiment(args) -> Experimenter:
     elif agent_type == "SEAC":
         for i in range(num_agents):
             agent = SEACAgent(obs_space, action_space,
-                              capacity=capacity, device=device,
-                              agent_list=agent_list, lambda_value=se_lambda_value, batch_size=batch_size)
+                              episode_max_length=episode_max_length, device=device,
+                              agent_list=agent_list, lambda_value=se_lambda_value, batch_size=batch_size, n_steps=n_steps)
             agent_list.append(agent)
 
     if args.pretrain_path is not None:

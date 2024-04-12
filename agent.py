@@ -1,13 +1,16 @@
 import numpy as np
 import torch
 
-from experience_replay import ExperienceReplay
+from typing import Tuple, List, Union, Dict, Any
+
+from experience_replay import EpisodicExperienceReplay
 from nets import ActorPolicyNet, CriticValueNet
 
 
 class ACAgent(object):
-    def __init__(self, obs_shape, action_shape, capacity, device, hidden_size=256, adam_eps=1e-3, gamma=0.99,
-                 entropy_coeff=0.01, value_loss_coeff=0.5, learning_rate=3e-4, grad_clip=0.5, tau=5e-4, batch_size=256):
+    def __init__(self, obs_shape, action_shape, episode_max_length, device, hidden_size=256, adam_eps=1e-3, gamma=0.99,
+                 entropy_coeff=0.01, value_loss_coeff=0.5, learning_rate=3e-4, grad_clip=0.5, tau=5e-4, batch_size=256,
+                 n_steps=1):
         self.device = device
         self.batch_size = batch_size
         self.gamma = gamma
@@ -15,8 +18,10 @@ class ACAgent(object):
         self.value_loss_coeff = value_loss_coeff
         self.grad_clip = grad_clip
         self.tau = tau
+        self.n_steps = n_steps
+        self.episode_max_length = episode_max_length
 
-        self.memory = ExperienceReplay(capacity)
+        self.memory = EpisodicExperienceReplay(episode_max_length)
 
         self.actor = ActorPolicyNet(obs_shape, action_shape, hidden_size).to(device)
         self.critic = CriticValueNet(obs_shape, hidden_size).to(device)
@@ -47,8 +52,7 @@ class ACAgent(object):
     def remember(self, state, action, reward, next_state, done):
         self.memory.push(state, action, reward, next_state, int(done))
 
-    def calculate_loss_terms(self, states, actions, rewards, next_states, dones) -> (
-    torch.Tensor, torch.Tensor, torch.Tensor):
+    def calculate_loss_terms(self, states, actions, rewards, next_states, dones) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         dist = self.actor.forward(states)
         log_props = dist.log_prob(actions).view(self.batch_size)
         entropy = dist.entropy()
@@ -59,11 +63,11 @@ class ACAgent(object):
 
         #  TODO: Estimate advantage with Monte Carlo return
         # Estimate advantage
-        advantages = rewards + (1-dones) * self.gamma * next_state_values - state_values
+        advantages = rewards + (1-dones) * (self.gamma ** self.n_steps) * next_state_values - state_values
 
         return log_props, entropy, advantages
 
-    def calculate_loss(self, states, actions, rewards, next_states, dones) -> (torch.float32, torch.float32):
+    def calculate_loss(self, states, actions, rewards, next_states, dones) -> Tuple[torch.Tensor, torch.Tensor]:
         log_props, entropy, advantages = self.calculate_loss_terms(states, actions, rewards, next_states, dones)
         # Disregard advantage in gradient calculation for actor
         actor_loss = ((-log_props * advantages.detach()) - entropy * self.entropy_coeff).mean()
@@ -108,8 +112,8 @@ class ACAgent(object):
 
 
 class SEACAgent(ACAgent):
-    def __init__(self, obs_shape, action_shape, capacity, device, agent_list, lambda_value=1.0, **kwargs):
-        super(SEACAgent, self).__init__(obs_shape, action_shape, capacity, device, **kwargs)
+    def __init__(self, obs_shape, action_shape, episode_max_length, device, agent_list, lambda_value=1.0, **kwargs):
+        super(SEACAgent, self).__init__(obs_shape, action_shape, episode_max_length, device, **kwargs)
         self.agent_list = agent_list
         self.lambda_value = lambda_value
 
