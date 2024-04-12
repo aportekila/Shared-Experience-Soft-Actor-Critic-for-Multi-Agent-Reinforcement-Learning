@@ -8,10 +8,10 @@ from experimenter import create_experiment
 
 if __name__ == "__main__":
     argparser = argparse.ArgumentParser()
-    argparser.add_argument("--env", type=str, default="rware-tiny-4ag-v1")
+    argparser.add_argument("--env", type=str, default="rware-tiny-4ag-v1", choices=["rware-tiny-4ag-v1"])
     argparser.add_argument("--num_agents", type=int, default=4) # TODO: this shouldn't be hardcoded in the future (e.g. for different envs)
-    argparser.add_argument("--agent_type", type=str, default="SEAC", choices=["IAC", "SNAC", "SEAC", "SESAC"])
-    argparser.add_argument("--episode_max_length", type=int, default=500) # TODO: this shouldn't be hardcoded in the future (e.g. for different envs)
+    argparser.add_argument("--agent_type", type=str, default="IAC", choices=["IAC", "SNAC", "SEAC", "SESAC"])
+    argparser.add_argument("--episode_max_length", type=int, default=None)
     argparser.add_argument("--total_env_steps", type=int, default=50000000)
     argparser.add_argument("--warmup_episodes", type=int, default=0)
     argparser.add_argument("--pretrain_path", type=str, default=None)

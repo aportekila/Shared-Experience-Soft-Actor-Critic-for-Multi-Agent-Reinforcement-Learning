@@ -4,25 +4,21 @@ from typing import Iterable
 import gymnasium as gym
 import pettingzoo
 import rware
-# from lbforaging.foraging.pettingzoo_environment import parallel_env
 import numpy as np
 import torch
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 
+from environments import RwareEnvironment
 from agent import ACAgent, SEACAgent
 
 
 class Experimenter(object):
-    def __init__(self, env: gym.Env, agents: list[ACAgent], save_path: str, episode_max_length: int = 500):
+    def __init__(self, env: gym.Env, agents: list[ACAgent], save_path: str):
         self.env = env
-        self.env.reset() # required to instantiate some parts of pettingzoo envs
         self.agents = agents
-        if isinstance(env, pettingzoo.utils.conversions.aec_to_parallel_wrapper):
-            self.agent_dict = {env.aec_env.agents[i] : agents[i] for i in range(len(agents))}
-        else:
-            self.agent_dict = {i: agents[i] for i in range(len(agents))}
-        self.episode_max_length = episode_max_length
+        self.agent_dict = {i: agents[i] for i in range(len(self.env.agents))} # FIXME
+        self.episode_max_length = self.env.max_steps
         self.save_path = save_path
         self.experiment_history = {
             "episode": [],
@@ -135,36 +131,19 @@ def create_experiment(args) -> Experimenter:
     agent_type: str = args.agent_type
     env_name: str = args.env
     num_agents: int = args.num_agents
-    episode_max_length: int = args.episode_max_length
     device: torch.device = args.device
     se_lambda_value: float = args.SEAC_lambda_value
     save_path: str = args.save_path
     batch_size: int = args.batch_size
+    episode_max_length: int = args.episode_max_length
     n_steps: int = args.n_steps
+    seed: int = args.seed
 
     assert (agent_type in implemented_agent_types)
 
     # Handle different env types:
-    if "foraging" in env_name.lower():
-        pattern = r'^Foraging-(\d+)x(\d+)-(\d+)p-(\d+)f-(\w+)$'
-        # Match the pattern against the environment name
-        match = re.match(pattern, env_name)
-        assert match
-        field_size = (int(match.group(1)), int(match.group(2)))  # Shape as a tuple
-        players = int(match.group(3))  # Extract the number of players
-        max_food = int(match.group(4))
-        # Magic numbers, these are default params in SEAC paper.
-        max_level = 3  # magic number, but this is what they use in paper.
-        sight = field_size[0]
-        max_episode_steps = episode_max_length  # Default is 50!
-        force_coop = False
-        env = parallel_env(players=players,
-                           max_player_level=max_level,
-                           field_size=field_size,
-                           max_food=max_food,
-                           sight=sight,
-                           max_episode_steps=max_episode_steps,
-                           force_coop=force_coop)
+    if "rware" in env_name.lower():
+        env = RwareEnvironment(max_steps = episode_max_length)
     else:
         env = gym.make(env_name)
 
@@ -172,36 +151,27 @@ def create_experiment(args) -> Experimenter:
     # TODO: This is implemented in the 'if agent_type == ...' branches.
     agent_list = []
 
-    # TODO: idk if todo, but would be nice to wrap rware in pettingzoo env.
-    if isinstance(env, pettingzoo.ParallelEnv):
-        agent0 = env.possible_agents[0]
-        obs_space = env.observation_spaces[agent0].shape[0]
-        action_space = env.action_spaces[agent0].n
-    elif isinstance(env.observation_space, Iterable):
-        obs_space = env.observation_space[0].shape[0]
-        action_space = env.action_space[0].n
-    else:
-        raise ValueError(f"Unsupported env type: {type(env)}")
+    env.reset(seed=seed)
 
     # Individual agents with no access to each other
     if agent_type == "IAC":
-        for i in range(num_agents):
-            agent = ACAgent(obs_space, action_space,
+        for agent in env.agents:
+            agent = ACAgent(env.observation_shapes[agent], env.action_spaces[agent],
                             episode_max_length=episode_max_length, device=device, batch_size=batch_size, n_steps=n_steps)
             agent_list.append(agent)
 
     # Several references to the same agent (shared network)
     elif agent_type == "SNAC":
         # TODO: update agent.py
-        agent = ACAgent(obs_space, action_space,
+        agent = ACAgent(env.observation_shapes[env.agents[0]], env.action_spaces[env.agents[0]],
                         episode_max_length=episode_max_length * num_agents, device=device, batch_size=batch_size, n_steps=n_steps)
         for i in range(num_agents):
             agent_list.append(agent)
 
     # Individual agents with access to each other
     elif agent_type == "SEAC":
-        for i in range(num_agents):
-            agent = SEACAgent(obs_space, action_space,
+        for agent in env.agents:
+            agent = SEACAgent(env.observation_shapes[agent], env.action_spaces[agent],
                               episode_max_length=episode_max_length, device=device,
                               agent_list=agent_list, lambda_value=se_lambda_value, batch_size=batch_size, n_steps=n_steps)
             agent_list.append(agent)
@@ -210,4 +180,4 @@ def create_experiment(args) -> Experimenter:
         for agent_id, agent in enumerate(agent_list):
             agent.load(f"{args.pretrain_path}/agent_{agent_id}.pth")
 
-    return Experimenter(env, agent_list, save_path, episode_max_length=episode_max_length)
+    return Experimenter(env, agent_list, save_path)
