@@ -8,7 +8,7 @@ from experimenter import create_experiment
 
 if __name__ == "__main__":
     argparser = argparse.ArgumentParser()
-    argparser.add_argument("--env", type=str, default="rware-tiny-4ag-v1", choices=["rware-tiny-4ag-v1"])
+    argparser.add_argument("--env", type=str, default="Foraging-10x10-3p-3f-v2", choices=["rware-tiny-4ag-v1", "Foraging-10x10-3p-3f-v2"])
     argparser.add_argument("--num_agents", type=int, default=4) # TODO: this shouldn't be hardcoded in the future (e.g. for different envs)
     argparser.add_argument("--agent_type", type=str, default="IAC", choices=["IAC", "SNAC", "SEAC", "SESAC"])
     argparser.add_argument("--episode_max_length", type=int, default=None)

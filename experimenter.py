@@ -9,7 +9,7 @@ import torch
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 
-from environments import ProjectBaseEnv, RwareEnvironment
+from environments import ProjectBaseEnv, RwareEnvironment, ForagingEnv
 from agent import ACAgent, SEACAgent
 
 
@@ -39,7 +39,7 @@ class Experimenter(object):
             actions = {agent_id: agent.act(states[agent_id], training=training)
                        for agent, agent_id in zip(self.learning_agents, self.agent_names)}
 
-            next_states, rewards, terminated, truncated, info = self.env.step(actions.values())
+            next_states, rewards, terminated, truncated, info = self.env.step(list(actions.values()))
 
             # I hope truncated actually works
             done = np.all(list(terminated.values())) or np.all(list(truncated.values()))
@@ -147,8 +147,10 @@ def create_experiment(args) -> Experimenter:
     # Handle different env types:
     if "rware" in env_name.lower():
         env = RwareEnvironment(max_steps=episode_max_length)
+    elif "foraging" in env_name.lower():
+        env = ForagingEnv()
     else:
-        env = gym.make(env_name)
+        env = ProjectBaseEnv()
 
     # TODO: Support for multiple lists / teams (e.g. team based where a subset of agents have access to each other)
     # TODO: This is implemented in the 'if agent_type == ...' branches.
@@ -159,7 +161,7 @@ def create_experiment(args) -> Experimenter:
     # Individual agents with no access to each other
     if agent_type == "IAC":
         for agent in env.agents:
-            agent = ACAgent(env.observation_shapes[agent], env.action_spaces[agent],
+            agent = ACAgent(env.observation_shapes[agent], env.action_shapes[agent],
                             episode_max_length=episode_max_length, device=device, batch_size=batch_size,
                             n_steps=n_steps)
             agent_list.append(agent)
@@ -167,7 +169,7 @@ def create_experiment(args) -> Experimenter:
     # Several references to the same agent (shared network)
     elif agent_type == "SNAC":
         #  TODO: update agent.py
-        agent = ACAgent(env.observation_shapes[env.agents[0]], env.action_spaces[env.agents[0]],
+        agent = ACAgent(env.observation_shapes[env.agents[0]], env.action_shapes[env.agents[0]],
                         episode_max_length=episode_max_length * num_agents, device=device, batch_size=batch_size,
                         n_steps=n_steps)
         for i in range(num_agents):
@@ -176,7 +178,7 @@ def create_experiment(args) -> Experimenter:
     # Individual agents with access to each other
     elif agent_type == "SEAC":
         for agent in env.agents:
-            agent = SEACAgent(env.observation_shapes[agent], env.action_spaces[agent],
+            agent = SEACAgent(env.observation_shapes[agent], env.action_shapes[agent],
                               episode_max_length=episode_max_length, device=device,
                               agent_list=agent_list, lambda_value=se_lambda_value, batch_size=batch_size,
                               n_steps=n_steps)
