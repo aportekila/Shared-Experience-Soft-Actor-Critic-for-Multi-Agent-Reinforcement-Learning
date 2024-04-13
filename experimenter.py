@@ -28,8 +28,6 @@ class Experimenter(object):
             "mean_length": [],
             "std_length": []
         }
-        
-        # TODO: set seed for random, torch, np etc.
 
     def generate_episode(self, render: bool = False, training: bool = True) -> tuple[np.float64, int]:
         states, info = self.env.reset()
