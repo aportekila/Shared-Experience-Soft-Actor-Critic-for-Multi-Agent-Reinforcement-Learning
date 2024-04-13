@@ -2,6 +2,12 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from torch.distributions import (
+    Normal,
+    TransformedDistribution,
+    TanhTransform,
+    Categorical
+)
 
 class CriticValueNet(nn.Module):
     def __init__(self, state_size, hidden_size=64):
@@ -27,6 +33,23 @@ class CriticValueNet(nn.Module):
         return self.arch(x)
 
 
+from torch.distributions.transforms import TanhTransform
+
+class SquashedGaussianHead(nn.Module):
+    def __init__(self, n, upper_clamp=-2.0):
+        super(SquashedGaussianHead, self).__init__()
+        self._n = n
+        self._upper_clamp = upper_clamp
+
+    def forward(self, x):
+        mean_bt = x[..., : self._n]
+        log_var_bt = (x[..., self._n :]).clamp(-10, -self._upper_clamp)  # clamp added
+        std_bt = log_var_bt.exp().sqrt()
+        dist_bt = Normal(mean_bt, std_bt)
+        transform = TanhTransform(cache_size=1)
+        dist = TransformedDistribution(dist_bt, transform)
+        return dist
+    
 class ActorPolicyNet(nn.Module):
     def __init__(self, state_size, action_size, hidden_size=64, is_discrete=True):
         super(ActorPolicyNet, self).__init__()
@@ -37,7 +60,7 @@ class ActorPolicyNet(nn.Module):
             nn.ReLU(),
             nn.Linear(hidden_size, hidden_size),
             nn.ReLU(),
-            nn.Linear(hidden_size, action_size)
+            nn.Linear(hidden_size, action_size if is_discrete else 2 *action_size)
         )
 
         self.init_weights()
@@ -48,9 +71,9 @@ class ActorPolicyNet(nn.Module):
                 nn.init.xavier_normal_(layer.weight)
                 nn.init.zeros_(layer.bias)
 
-    def forward(self, x) -> torch.distributions.Categorical:
+    def forward(self, x) -> torch.distributions.Distribution:
         x = self.arch(x)
         if self.is_discrete:
-            return torch.distributions.Categorical(logits=x)
+            return Categorical(logits=x)
         else:
-            raise NotImplementedError('ActorPolicyNet only supports discrete actions')
+            return SquashedGaussianHead(x.size(-1) // 2)(x)

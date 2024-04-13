@@ -130,7 +130,7 @@ class Experimenter(object):
                     # save results periodically
                     mean_rewards = np.array(self.experiment_history["mean_reward"])
                     std_rewards = np.array(self.experiment_history["std_reward"])
-                    x_axis = np.array(self.experiment_history["episode"]) * args.evaluate_episodes
+                    x_axis = np.array(self.experiment_history["episode"]) * self.env.max_steps
                     plt.plot(x_axis, mean_rewards)
                     plt.fill_between(x_axis, mean_rewards - std_rewards, mean_rewards + std_rewards, alpha=0.2)
                     plt.xlabel("Time Steps")
@@ -165,6 +165,7 @@ def create_experiment(args) -> Experimenter:
     else:
         env = ProjectBaseEnv()
 
+    is_discrete = env.is_discrete
     # TODO: Support for multiple lists / teams (e.g. team based where a subset of agents have access to each other)
     agent_list = []
 
@@ -177,7 +178,7 @@ def create_experiment(args) -> Experimenter:
         for agent in env.agents:
             agent = ACAgent(env.observation_shapes[agent], env.action_shapes[agent],
                             capacity=capacity, device=device, batch_size=batch_size,
-                            n_steps=n_steps)
+                            n_steps=n_steps, is_discrete=is_discrete)
             agent_list.append(agent)
 
     # Several references to the same agent (shared network)
@@ -186,7 +187,7 @@ def create_experiment(args) -> Experimenter:
         #  TODO: update agent.py
         agent = ACAgent(env.observation_shapes[env.agents[0]], env.action_shapes[env.agents[0]],
                         capacity=capacity * num_agents, device=device, batch_size=batch_size,
-                        n_steps=n_steps)
+                        n_steps=n_steps, is_discrete=is_discrete)
         for i in range(num_agents):
             agent_list.append(agent)
 
@@ -196,7 +197,7 @@ def create_experiment(args) -> Experimenter:
             agent = SEACAgent(env.observation_shapes[agent], env.action_shapes[agent],
                               capacity=capacity, device=device,
                               agent_list=agent_list, lambda_value=se_lambda_value, batch_size=batch_size,
-                              n_steps=n_steps)
+                              n_steps=n_steps, is_discrete=is_discrete)
             agent_list.append(agent)
 
     if args.pretrain_path is not None:

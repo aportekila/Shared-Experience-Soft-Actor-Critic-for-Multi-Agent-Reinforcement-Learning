@@ -10,7 +10,7 @@ from nets import ActorPolicyNet, CriticValueNet
 class ACAgent(object):
     def __init__(self, obs_shape, action_shape, capacity, device, hidden_size=256, adam_eps=1e-3, gamma=0.99,
                  entropy_coeff=0.01, value_loss_coeff=0.5, learning_rate=3e-4, grad_clip=0.5, tau=5e-4, batch_size=256,
-                 n_steps=1):
+                 n_steps=1, is_discrete=True):
         self.device = device
         self.batch_size = batch_size
         self.gamma = gamma
@@ -23,7 +23,7 @@ class ACAgent(object):
 
         self.memory = ExperienceReplay(capacity)
 
-        self.actor = ActorPolicyNet(obs_shape, action_shape, hidden_size).to(device)
+        self.actor = ActorPolicyNet(obs_shape, action_shape, hidden_size, is_discrete=is_discrete).to(device)
         self.critic = CriticValueNet(obs_shape, hidden_size).to(device)
         self.critic_target = CriticValueNet(obs_shape, hidden_size).to(device)
 
