@@ -7,10 +7,12 @@ import rware
 import numpy as np
 import torch
 from tqdm import tqdm
+import concurrent
 import matplotlib.pyplot as plt
 
 from environments import ProjectBaseEnv, RwareEnvironment, ForagingEnv
 from agent import ACAgent, SEACAgent
+from experience_replay import EpisodicExperienceReplay
 from utils import seed_everything
 
 
@@ -19,8 +21,8 @@ class Experimenter(object):
         self.env = env
         self.learning_agents = agents
         self.agent_names = self.env.agents
-        self.episode_max_length = self.env.max_steps
         self.save_path = save_path
+        self.n_agents = len(self.agent_names)
         self.experiment_history = {
             "episode": [],
             "mean_reward": [],
@@ -28,8 +30,12 @@ class Experimenter(object):
             "mean_length": [],
             "std_length": []
         }
+        
+        self.temp_memories = [] # for n-step TD learning
 
+        
     def generate_episode(self, render: bool = False, training: bool = True) -> tuple[np.float64, int]:
+        self.temp_memories.append({agent_id: EpisodicExperienceReplay(self.env.max_steps) for agent_id in self.agent_names})
         states, info = self.env.reset()
         episode_reward = 0
         episode_length = 0
@@ -45,8 +51,8 @@ class Experimenter(object):
             done = np.all(list(terminated.values())) or np.all(list(truncated.values()))
 
             if training:
-                for agent, agent_id in zip(self.learning_agents, self.agent_names):
-                    agent.remember(states[agent_id], actions[agent_id], rewards[agent_id],
+                for agent_id, memory in self.temp_memories[-1].items():
+                    memory.push(states[agent_id], actions[agent_id], rewards[agent_id],
                                    next_states[agent_id], done and 1 or 0)
 
             states = next_states
@@ -58,16 +64,22 @@ class Experimenter(object):
 
         # n-step TD learning
         if training:
-            for agent in self.learning_agents:
-                agent.memory.convert_to_n_step(agent.n_steps, agent.gamma)
+            with concurrent.futures.ThreadPoolExecutor(max_workers=self.n_agents) as executor:
+                for agent_id, memory in enumerate(self.temp_memories[-1].values()):
+                    executor.submit(memory.convert_to_n_step, n_steps=self.learning_agents[agent_id].n_steps, gamma=self.learning_agents[agent_id].gamma)
+                    
+            with concurrent.futures.ThreadPoolExecutor(max_workers=self.n_agents) as executor:
+                for agent_id, memory in enumerate(self.temp_memories[-1].values()):
+                    executor.map(self.learning_agents[agent_id].remember_tuple, memory.memory)
 
         return episode_reward, episode_length
-
+    
     def learn(self, num_steps: int = 50):
         for agent_id, agent in enumerate(self.learning_agents):
             agent.learn(num_steps=num_steps)
 
     def clear_experience(self):
+        self.temp_memories = []
         for agent in self.learning_agents:
             agent.memory.clear()
 
@@ -92,7 +104,7 @@ class Experimenter(object):
         }
 
     def run(self, args):
-        num_episodes = args.total_env_steps // self.episode_max_length
+        num_episodes = args.total_env_steps // self.env.max_steps
         for episode in tqdm(range(num_episodes)):
             if episode < args.warmup_episodes:
                 self.generate_episode(training=True)
@@ -100,8 +112,10 @@ class Experimenter(object):
                 reward, _ = self.generate_episode(training=True)
                 if args.verbose > 0:
                     print(f"Episode {episode}: {reward}")
-                self.learn(num_steps=args.num_gradient_steps)
-                self.clear_experience()
+                
+                if episode % args.update_frequency == 0:
+                    self.learn(num_steps=args.num_gradient_steps)
+                    self.clear_experience()
 
                 if episode % args.evaluate_frequency == 0 or episode == num_episodes - 1:
                     result = self.evaluate_policies(args.evaluate_episodes, render=args.render)
@@ -126,7 +140,7 @@ class Experimenter(object):
                     np.save(f"{self.save_path}/experiment_history.npy", self.experiment_history)
 
 
-implemented_agent_types = ["IAC", "SEAC"]
+implemented_agent_types = ["IAC", "SNAC", "SEAC"]
 
 
 def create_experiment(args) -> Experimenter:
@@ -136,6 +150,7 @@ def create_experiment(args) -> Experimenter:
     se_lambda_value: float = args.SEAC_lambda_value
     save_path: str = args.save_path
     batch_size: int = args.batch_size
+    capacity: int = args.buffer_size
     episode_max_length: int = args.episode_max_length
     n_steps: int = args.n_steps
     seed: int = args.seed
@@ -161,7 +176,7 @@ def create_experiment(args) -> Experimenter:
     if agent_type == "IAC":
         for agent in env.agents:
             agent = ACAgent(env.observation_shapes[agent], env.action_shapes[agent],
-                            episode_max_length=episode_max_length, device=device, batch_size=batch_size,
+                            capacity=capacity, device=device, batch_size=batch_size,
                             n_steps=n_steps)
             agent_list.append(agent)
 
@@ -170,7 +185,7 @@ def create_experiment(args) -> Experimenter:
         num_agents = len(env.agents)
         #  TODO: update agent.py
         agent = ACAgent(env.observation_shapes[env.agents[0]], env.action_shapes[env.agents[0]],
-                        episode_max_length=episode_max_length * num_agents, device=device, batch_size=batch_size,
+                        capacity=capacity * num_agents, device=device, batch_size=batch_size,
                         n_steps=n_steps)
         for i in range(num_agents):
             agent_list.append(agent)
@@ -179,7 +194,7 @@ def create_experiment(args) -> Experimenter:
     elif agent_type == "SEAC":
         for agent in env.agents:
             agent = SEACAgent(env.observation_shapes[agent], env.action_shapes[agent],
-                              episode_max_length=episode_max_length, device=device,
+                              capacity=capacity, device=device,
                               agent_list=agent_list, lambda_value=se_lambda_value, batch_size=batch_size,
                               n_steps=n_steps)
             agent_list.append(agent)

@@ -3,12 +3,12 @@ import torch
 
 from typing import Tuple, List, Union, Dict, Any
 
-from experience_replay import EpisodicExperienceReplay
+from experience_replay import ExperienceReplay
 from nets import ActorPolicyNet, CriticValueNet
 
 
 class ACAgent(object):
-    def __init__(self, obs_shape, action_shape, episode_max_length, device, hidden_size=256, adam_eps=1e-3, gamma=0.99,
+    def __init__(self, obs_shape, action_shape, capacity, device, hidden_size=256, adam_eps=1e-3, gamma=0.99,
                  entropy_coeff=0.01, value_loss_coeff=0.5, learning_rate=3e-4, grad_clip=0.5, tau=5e-4, batch_size=256,
                  n_steps=1):
         self.device = device
@@ -19,9 +19,9 @@ class ACAgent(object):
         self.grad_clip = grad_clip
         self.tau = tau
         self.n_steps = n_steps
-        self.episode_max_length = episode_max_length
+        self.capacity = capacity
 
-        self.memory = EpisodicExperienceReplay(episode_max_length)
+        self.memory = ExperienceReplay(capacity)
 
         self.actor = ActorPolicyNet(obs_shape, action_shape, hidden_size).to(device)
         self.critic = CriticValueNet(obs_shape, hidden_size).to(device)
@@ -51,6 +51,10 @@ class ACAgent(object):
 
     def remember(self, state, action, reward, next_state, done):
         self.memory.push(state, action, reward, next_state, int(done))
+        
+    def remember_tuple(self, transition):
+        self.memory.push(*transition)
+        
 
     def calculate_loss_terms(self, states, actions, rewards, next_states, dones) -> Tuple[
         torch.Tensor, torch.Tensor, torch.Tensor]:
@@ -112,8 +116,8 @@ class ACAgent(object):
 
 
 class SEACAgent(ACAgent):
-    def __init__(self, obs_shape, action_shape, episode_max_length, device, agent_list, lambda_value=1.0, **kwargs):
-        super(SEACAgent, self).__init__(obs_shape, action_shape, episode_max_length, device, **kwargs)
+    def __init__(self, obs_shape, action_shape, capacity, device, agent_list, lambda_value=1.0, **kwargs):
+        super(SEACAgent, self).__init__(obs_shape, action_shape, capacity, device, **kwargs)
         self.agent_list = agent_list
         self.lambda_value = lambda_value
 

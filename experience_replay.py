@@ -11,7 +11,7 @@ class ExperienceReplay(object):
 
     def push(self, state: np.ndarray, action: np.number, reward: np.float64, next_state: np.ndarray, done: int):
         self.memory.append((state, action, reward, next_state, done))
-
+        
     def sample(self, batch_size: int) -> list[tuple[np.ndarray, np.number, np.float64, np.ndarray, int]]:
         return zip(*random.sample(self.memory, batch_size))
 
@@ -62,4 +62,4 @@ class EpisodicExperienceReplay(ExperienceReplay):
         
         
     def __repr__(self) -> str:
-        return f'EpisodicExperienceReplay(episode_max_length={self.episode_max_length}'
+        return f'EpisodicExperienceReplay(episode_max_length={self.episode_max_length})'
