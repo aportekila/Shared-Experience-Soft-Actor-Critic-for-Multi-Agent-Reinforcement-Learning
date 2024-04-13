@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 
 from environments import ProjectBaseEnv, RwareEnvironment, ForagingEnv
 from agent import ACAgent, SEACAgent
+from utils import seed_everything
 
 
 class Experimenter(object):
@@ -27,6 +28,7 @@ class Experimenter(object):
             "mean_length": [],
             "std_length": []
         }
+        
         # TODO: set seed for random, torch, np etc.
 
     def generate_episode(self, render: bool = False, training: bool = True) -> tuple[np.float64, int]:
@@ -154,6 +156,8 @@ def create_experiment(args) -> Experimenter:
     agent_list = []
 
     env.reset(seed=seed)
+    # Set seed for reproducibility
+    seed_everything(seed)
 
     # Individual agents with no access to each other
     if agent_type == "IAC":
