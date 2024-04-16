@@ -7,6 +7,7 @@ import lbforaging
 
 from copy import copy
 from pettingzoo import ParallelEnv
+from pettingzoo.sisl import multiwalker_v9
 
 
 class ProjectBaseEnv(ParallelEnv):
@@ -152,3 +153,42 @@ class ForagingEnvironment(ProjectBaseEnv):
             self.agents = []
 
         return observations, rewards, terminateds, trancateds, infos
+
+
+class MultiwalkerEnvironment(ProjectBaseEnv):
+    def __init__(self, **kwargs):
+        max_steps = kwargs.pop("max_steps") or 500
+        self.env = multiwalker_v9.parallel_env(render_mode="human", max_cycles=max_steps)
+        self.env.reset()
+        self.is_discrete = False
+        self.possible_agents = self.env.possible_agents
+        self.timestep = None
+        self.max_steps = max_steps
+
+        self.observation_spaces = {
+            agent: self.env.observation_space(agent) for agent in self.env.agents
+        }
+
+        self.action_spaces = {
+            agent: self.env.action_space(agent) for agent in self.env.agents
+        }
+
+        self.observation_shapes = {
+            agent: self.observation_spaces[agent].shape[0] for agent in self.possible_agents
+        }
+
+        self.action_shapes = {
+            agent: self.action_spaces[agent].n for agent in self.possible_agents
+        }
+
+    def reset(self, seed=None, options=None) -> Tuple[dict, dict]:
+        obs, infos = self.env.reset(seed=seed, options=options)
+        self.timestep = 0
+        self.agents = self.env.agents
+        return obs, infos
+
+    def step(self, actions: list) -> Tuple[dict, dict, dict, dict, dict]:
+        observations, rewards, terminates, truncates, infos = self.env.step(actions)
+        self.timestep += 1
+        self.agents = self.env.agents
+        return observations, rewards, terminates, truncates, infos
