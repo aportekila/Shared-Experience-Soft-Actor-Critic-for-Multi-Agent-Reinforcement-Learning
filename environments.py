@@ -178,7 +178,7 @@ class MultiwalkerEnvironment(ProjectBaseEnv):
         }
 
         self.action_shapes = {
-            agent: self.action_spaces[agent].n for agent in self.possible_agents
+            agent: self.action_spaces[agent].shape[0] for agent in self.possible_agents
         }
 
     def reset(self, seed=None, options=None) -> Tuple[dict, dict]:
@@ -188,6 +188,9 @@ class MultiwalkerEnvironment(ProjectBaseEnv):
         return obs, infos
 
     def step(self, actions: list) -> Tuple[dict, dict, dict, dict, dict]:
+        # TODO: This should be given as a dictionary, and we should change the implementation elsewhere.
+        actions = {agent: actions[i] for i, agent in enumerate(self.agents)}
+
         observations, rewards, terminates, truncates, infos = self.env.step(actions)
         self.timestep += 1
         self.agents = self.env.agents
