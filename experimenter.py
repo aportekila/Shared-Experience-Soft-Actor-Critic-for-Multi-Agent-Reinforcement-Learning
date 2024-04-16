@@ -10,7 +10,7 @@ from tqdm import tqdm
 import concurrent
 import matplotlib.pyplot as plt
 
-from environments import ProjectBaseEnv, RwareEnvironment, ForagingEnvironment
+from environments import ProjectBaseEnv, RwareEnvironment, ForagingEnvironment, MultiwalkerEnvironment
 from agent import ACAgent, SEACAgent
 from experience_replay import EpisodicExperienceReplay
 from utils import seed_everything
@@ -163,6 +163,8 @@ def create_experiment(args) -> Experimenter:
         env = RwareEnvironment(max_steps=episode_max_length)
     elif "foraging" in env_name.lower():
         env = ForagingEnvironment(max_steps=episode_max_length)
+    elif "multiwalker" in env_name.lower():
+        env = MultiwalkerEnvironment(max_steps=episode_max_length)
     else:
         env = ProjectBaseEnv()
 
