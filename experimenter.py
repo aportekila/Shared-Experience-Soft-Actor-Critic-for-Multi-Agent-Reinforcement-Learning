@@ -10,7 +10,7 @@ from tqdm import tqdm
 import concurrent
 import matplotlib.pyplot as plt
 
-from environments import ProjectBaseEnv, RwareEnvironment, ForagingEnv
+from environments import ProjectBaseEnv, RwareEnvironment, ForagingEnvironment
 from agent import ACAgent, SEACAgent
 from experience_replay import EpisodicExperienceReplay
 from utils import seed_everything
@@ -30,12 +30,12 @@ class Experimenter(object):
             "mean_length": [],
             "std_length": []
         }
-        
-        self.temp_memories = [] # for n-step TD learning
 
-        
+        self.temp_memories = []  # for n-step TD learning
+
     def generate_episode(self, render: bool = False, training: bool = True) -> tuple[np.float64, int]:
-        self.temp_memories.append({agent_id: EpisodicExperienceReplay(self.env.max_steps) for agent_id in self.agent_names})
+        self.temp_memories.append(
+            {agent_id: EpisodicExperienceReplay(self.env.max_steps) for agent_id in self.agent_names})
         states, info = self.env.reset()
         episode_reward = 0
         episode_length = 0
@@ -53,7 +53,7 @@ class Experimenter(object):
             if training:
                 for agent_id, memory in self.temp_memories[-1].items():
                     memory.push(states[agent_id], actions[agent_id], rewards[agent_id],
-                                   next_states[agent_id], done and 1 or 0)
+                                next_states[agent_id], done and 1 or 0)
 
             states = next_states
             episode_length += 1
@@ -66,14 +66,15 @@ class Experimenter(object):
         if training:
             with concurrent.futures.ThreadPoolExecutor(max_workers=self.n_agents) as executor:
                 for agent_id, memory in enumerate(self.temp_memories[-1].values()):
-                    executor.submit(memory.convert_to_n_step, n_steps=self.learning_agents[agent_id].n_steps, gamma=self.learning_agents[agent_id].gamma)
-                    
+                    executor.submit(memory.convert_to_n_step, n_steps=self.learning_agents[agent_id].n_steps,
+                                    gamma=self.learning_agents[agent_id].gamma)
+
             with concurrent.futures.ThreadPoolExecutor(max_workers=self.n_agents) as executor:
                 for agent_id, memory in enumerate(self.temp_memories[-1].values()):
                     executor.map(self.learning_agents[agent_id].remember_tuple, memory.memory)
 
         return episode_reward, episode_length
-    
+
     def learn(self, num_steps: int = 50):
         for agent_id, agent in enumerate(self.learning_agents):
             agent.learn(num_steps=num_steps)
@@ -109,10 +110,10 @@ class Experimenter(object):
             if episode < args.warmup_episodes:
                 self.generate_episode(training=True)
             else:
-                reward, _ = self.generate_episode(training=True)
+                reward, length = self.generate_episode(training=True)
                 if args.verbose > 0:
-                    print(f"Episode {episode}: {reward}")
-                
+                    print(f"Episode {episode}: {reward}, length: {length}")
+
                 if episode % args.update_frequency == 0:
                     self.learn(num_steps=args.num_gradient_steps)
                     self.clear_experience()
@@ -161,7 +162,7 @@ def create_experiment(args) -> Experimenter:
     if "rware" in env_name.lower():
         env = RwareEnvironment(max_steps=episode_max_length)
     elif "foraging" in env_name.lower():
-        env = ForagingEnv()
+        env = ForagingEnvironment(max_steps=episode_max_length)
     else:
         env = ProjectBaseEnv()
 
