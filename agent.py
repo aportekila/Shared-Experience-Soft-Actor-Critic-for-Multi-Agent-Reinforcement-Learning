@@ -59,8 +59,8 @@ class ACAgent(object):
     def calculate_loss_terms(self, states, actions, rewards, next_states, dones) -> Tuple[
         torch.Tensor, torch.Tensor, torch.Tensor]:
         dist = self.actor.forward(states)
-        log_props = dist.log_prob(actions).view(self.batch_size)
-        entropy = dist.entropy()
+        log_props = dist.log_prob(actions).view(self.batch_size) # TODO: This fails because logs props are for entire action space dim (e.g. for multiewalker it is len 4 vector).
+        entropy = dist.entropy() # TODO does not exist for SquashedGaussianHead
         state_values = self.critic.forward(states).view(self.batch_size)
 
         with torch.no_grad():
