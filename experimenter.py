@@ -10,14 +10,15 @@ from tqdm import tqdm
 import concurrent
 import matplotlib.pyplot as plt
 
-from environments import ProjectBaseEnv, RwareEnvironment, ForagingEnvironment, MultiwalkerEnvironment
+from environments import ProjectBaseEnv, RwareEnvironment, ForagingEnvironment, PettingZooEnvironment
 from agent import ACAgent, SEACAgent
 from experience_replay import EpisodicExperienceReplay
 from utils import seed_everything
 
 
 class Experimenter(object):
-    def __init__(self, env: ProjectBaseEnv, agents: list[ACAgent], save_path: str):
+    def __init__(self, args, env: ProjectBaseEnv, agents: list[ACAgent], save_path: str):
+        self.args = args
         self.env = env
         self.learning_agents = agents
         self.agent_names = self.env.agents
@@ -114,7 +115,7 @@ class Experimenter(object):
                 if args.verbose > 0:
                     print(f"Episode {episode}: {reward}, length: {length}")
 
-                if episode % args.update_frequency == 0:
+                if episode % args.update_frequency == 0 and len(self.learning_agents[0].memory) > self.args.batch_size:
                     self.learn(num_steps=args.num_gradient_steps)
                     self.clear_experience()
 
@@ -164,7 +165,9 @@ def create_experiment(args) -> Experimenter:
     elif "foraging" in env_name.lower():
         env = ForagingEnvironment(max_steps=episode_max_length)
     elif "multiwalker" in env_name.lower():
-        env = MultiwalkerEnvironment(max_steps=episode_max_length)
+        env = PettingZooEnvironment(env_name="multiwalker", max_steps=episode_max_length)
+    elif "waterworld" in env_name.lower():
+        env = PettingZooEnvironment(env_name="waterworld", max_steps=episode_max_length)
     else:
         env = ProjectBaseEnv()
 
@@ -207,4 +210,4 @@ def create_experiment(args) -> Experimenter:
         for agent_id, agent in enumerate(agent_list):
             agent.load(f"{args.pretrain_path}/agent_{agent_id}.pth")
 
-    return Experimenter(env, agent_list, save_path)
+    return Experimenter(args, env, agent_list, save_path)

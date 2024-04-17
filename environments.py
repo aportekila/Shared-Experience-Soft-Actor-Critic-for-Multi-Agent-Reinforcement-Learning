@@ -8,6 +8,7 @@ import lbforaging
 from copy import copy
 from pettingzoo import ParallelEnv
 from pettingzoo.sisl import multiwalker_v9
+from pettingzoo.sisl import waterworld_v4
 
 
 class ProjectBaseEnv(ParallelEnv):
@@ -155,10 +156,16 @@ class ForagingEnvironment(ProjectBaseEnv):
         return observations, rewards, terminateds, trancateds, infos
 
 
-class MultiwalkerEnvironment(ProjectBaseEnv):
+class PettingZooEnvironment(ProjectBaseEnv):
     def __init__(self, **kwargs):
+        env_name = kwargs.pop("env_name")
         max_steps = kwargs.pop("max_steps") or 500
-        self.env = multiwalker_v9.parallel_env(max_cycles=max_steps)
+        if env_name == "multiwalker":
+            self.env = multiwalker_v9.parallel_env(max_cycles=max_steps)
+        elif env_name == "waterworld":
+            self.env = waterworld_v4.parallel_env(max_cycles=max_steps)
+        else:
+            raise ValueError("Invalid environment name")
         self.env.reset()
         self.is_discrete = False
         self.possible_agents = self.env.possible_agents

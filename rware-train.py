@@ -8,7 +8,7 @@ from experimenter import create_experiment
 if __name__ == "__main__":
     argparser = argparse.ArgumentParser()
     argparser.add_argument("--env", type=str, default="multiwalker",
-                           choices=["multiwalker", "rware-tiny-4ag-v1", "Foraging-10x10-3p-3f-v2"])
+                           choices=["multiwalker", "waterwold", "rware-tiny-4ag-v1", "Foraging-10x10-3p-3f-v2"])
     argparser.add_argument("--agent_type", type=str, default="SNAC", choices=["IAC", "SNAC", "SEAC", "SESAC"])
     argparser.add_argument("--episode_max_length", type=int, default=None)
     argparser.add_argument("--total_env_steps", type=int, default=50000000)

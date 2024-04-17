@@ -59,15 +59,18 @@ class ACAgent(object):
     def calculate_loss_terms(self, states, actions, rewards, next_states, dones) -> Tuple[
         torch.Tensor, torch.Tensor, torch.Tensor]:
         dist = self.actor.forward(states)
-        log_props = dist.log_prob(actions).view(self.batch_size) # TODO: This fails because logs props are for entire action space dim (e.g. for multiewalker it is len 4 vector).
-        entropy = dist.entropy() # TODO does not exist for SquashedGaussianHead
-        state_values = self.critic.forward(states).view(self.batch_size)
+        if self.actor.is_discrete:
+            log_props = dist.log_prob(actions).view(self.batch_size, -1)
+        else:
+            log_props = dist.log_prob(actions.clamp(-1 + 1e-6, 1 - 1e-6)).view(self.batch_size, -1)
+        entropy = - log_props # TODO: justify
+        state_values = self.critic.forward(states)
 
         with torch.no_grad():
-            next_state_values = self.critic_target.forward(next_states).view(self.batch_size)
+            next_state_values = self.critic_target.forward(next_states)
 
         # Estimate advantage
-        advantages = rewards + (1 - dones) * (self.gamma ** self.n_steps) * next_state_values - state_values
+        advantages = rewards.view(-1, 1) + (1 - dones.view(-1, 1)) * (self.gamma ** self.n_steps) * next_state_values - state_values
 
         return log_props, entropy, advantages
 
