@@ -158,7 +158,7 @@ class ForagingEnvironment(ProjectBaseEnv):
 class MultiwalkerEnvironment(ProjectBaseEnv):
     def __init__(self, **kwargs):
         max_steps = kwargs.pop("max_steps") or 500
-        self.env = multiwalker_v9.parallel_env(render_mode="human", max_cycles=max_steps)
+        self.env = multiwalker_v9.parallel_env(max_cycles=max_steps)
         self.env.reset()
         self.is_discrete = False
         self.possible_agents = self.env.possible_agents
