@@ -132,6 +132,8 @@ class SEACAgent(ACAgent):
 
             for agent in self.agent_list:
                 if agent != self:
+                    states, actions, rewards, next_states, dones = agent.memory.sample_tensor(self.batch_size,
+                                                                                              self.device)
                     log_props_i, _, advantages_i = agent.calculate_loss_terms(states, actions, rewards, next_states,
                                                                               dones)
                     importance_weight = (log_props.exp() / (log_props_i.exp() + 1e-7)).detach()
