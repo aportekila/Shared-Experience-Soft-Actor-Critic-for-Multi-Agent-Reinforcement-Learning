@@ -7,11 +7,11 @@ from experimenter import create_experiment
 
 if __name__ == "__main__":
     argparser = argparse.ArgumentParser()
-    argparser.add_argument("--env", type=str, default="multiwalker",
+    argparser.add_argument("--env", type=str, default="Foraging-10x10-3p-3f-v2",
                            choices=["multiwalker", "waterwold", "rware-tiny-4ag-v1", "Foraging-10x10-3p-3f-v2"])
-    argparser.add_argument("--agent_type", type=str, default="SNAC", choices=["IAC", "SNAC", "SEAC", "SESAC"])
+    argparser.add_argument("--agent_type", type=str, default="SEAC", choices=["IAC", "SNAC", "SEAC", "SESAC"])
     argparser.add_argument("--episode_max_length", type=int, default=None)
-    argparser.add_argument("--total_env_steps", type=int, default=50000000)
+    argparser.add_argument("--total_env_steps", type=int, default=50_000_000)
     argparser.add_argument("--warmup_episodes", type=int, default=0)
     argparser.add_argument("--pretrain_path", type=str, default=None)
     argparser.add_argument("--save_path", type=str, default="logs/")
@@ -25,7 +25,7 @@ if __name__ == "__main__":
                            help="Number of episodes between updates")  # allows multiple episodes to be used for a single update
     argparser.add_argument("--num_gradient_steps", type=int, default=5)
     argparser.add_argument("--batch_size", type=int, default=128)
-    argparser.add_argument("--verbose", type=int, default=1, choices=[0, 1, 2])
+    argparser.add_argument("--verbose", type=int, default=0, choices=[0, 1, 2])
 
     argparser.add_argument("--render", default=False, action="store_true")
 
