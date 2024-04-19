@@ -137,6 +137,7 @@ class Experimenter(object):
                     plt.fill_between(x_axis, mean_rewards - std_rewards, mean_rewards + std_rewards, alpha=0.2)
                     plt.xlabel("Time Steps")
                     plt.ylabel("Episode Rewards")
+                    plt.title(f"{args.env} - {args.agent_type}")
                     plt.savefig(f"{self.save_path}/results.svg")
                     plt.close()
                     np.save(f"{self.save_path}/experiment_history.npy", self.experiment_history)
