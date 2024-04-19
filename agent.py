@@ -91,10 +91,12 @@ class ACAgent(object):
             actor_loss, critic_loss = self.calculate_loss(states, actions, rewards, next_states, dones)
             self.actor_optimizer.zero_grad()
             actor_loss.backward()
+            torch.nn.utils.clip_grad_norm_(self.actor.parameters(), self.grad_clip)
             self.actor_optimizer.step()
 
             self.critic_optimizer.zero_grad()
             critic_loss.backward()
+            torch.nn.utils.clip_grad_norm_(self.critic.parameters(), self.grad_clip)
             self.critic_optimizer.step()
 
             # Critic target soft update
@@ -143,10 +145,12 @@ class SEACAgent(ACAgent):
 
             self.actor_optimizer.zero_grad()
             actor_loss.backward()
+            torch.nn.utils.clip_grad_norm_(self.actor.parameters(), self.grad_clip)
             self.actor_optimizer.step()
 
             self.critic_optimizer.zero_grad()
             critic_loss.backward()
+            torch.nn.utils.clip_grad_norm_(self.critic.parameters(), self.grad_clip)
             self.critic_optimizer.step()
 
             # Critic target soft update
