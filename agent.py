@@ -138,7 +138,7 @@ class SEACAgent(ACAgent):
                                                                               dones)
                     importance_weight = (log_props.exp() / (log_props_i.exp() + 1e-7)).detach()
 
-                    actor_loss += self.lambda_value * (importance_weight * log_props * advantages_i.detach()).mean()
+                    actor_loss += self.lambda_value * (importance_weight * -log_props * advantages_i.detach()).mean()
                     critic_loss += self.lambda_value * (importance_weight * torch.square(advantages_i)).mean()
 
             self.actor_optimizer.zero_grad()
