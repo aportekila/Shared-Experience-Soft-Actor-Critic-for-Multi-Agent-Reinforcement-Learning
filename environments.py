@@ -6,11 +6,32 @@ import rware
 import lbforaging
 
 from copy import copy
+
 from pettingzoo import ParallelEnv
 from pettingzoo.sisl import multiwalker_v9
 from pettingzoo.sisl import waterworld_v4
 
 
+def make_envs(env_name, num_processes, max_steps):
+    # Handle different env types:
+    if "rware" in env_name.lower():
+        envs = [RwareEnvironment(max_steps=max_steps) for _ in range(num_processes)]
+        eval_env = RwareEnvironment(max_steps=max_steps)
+    elif "foraging" in env_name.lower():
+        envs = [ForagingEnvironment(max_steps=max_steps) for _ in range(num_processes)]
+        eval_env = ForagingEnvironment(max_steps=max_steps)
+    elif "multiwalker" in env_name.lower():
+        envs = [PettingZooEnvironment(env_name="multiwalker", max_steps=max_steps) for _ in range(num_processes)]
+        eval_env = PettingZooEnvironment(env_name="multiwalker", max_steps=max_steps)
+    elif "waterworld" in env_name.lower():
+        envs = [PettingZooEnvironment(env_name="waterworld", max_steps=max_steps) for _ in range(num_processes)]
+        eval_env = PettingZooEnvironment(env_name="waterworld", max_steps=max_steps)
+    else:
+        envs = [ProjectBaseEnv() for _ in range(num_processes)]
+        eval_env = ProjectBaseEnv()
+        
+    return envs, eval_env
+    
 class ProjectBaseEnv(ParallelEnv):
     # I think this abstractmethod thing helps IDE not complain
     @abstractmethod
@@ -77,19 +98,19 @@ class RwareEnvironment(ProjectBaseEnv):
         observations = {}
         rewards = {}
         terminateds = {}
-        trancateds = {}
+        truncateds = {}
         infos = {}
         for i, agent in enumerate(self.agents):
             observations[agent] = observations_[i]
             rewards[agent] = rewards_[i]
             terminateds[agent] = terminateds_[i]
-            trancateds[agent] = self.timestep >= self.max_steps
+            truncateds[agent] = self.timestep >= self.max_steps
             infos[agent] = {}
 
-        if any(terminateds.values()) or any(trancateds.values()):
+        if any(terminateds.values()) or any(truncateds.values()):
             self.agents = []
 
-        return observations, rewards, terminateds, trancateds, infos
+        return observations, rewards, terminateds, truncateds, infos
 
     def render(self):
         self.env.render()
