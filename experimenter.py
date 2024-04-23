@@ -144,7 +144,7 @@ class Experimenter(object):
                     np.save(f"{self.save_path}/experiment_history.npy", self.experiment_history)
 
 
-implemented_agent_types = ["IAC", "SNAC", "SEAC"]
+implemented_agent_types = ["IAC", "SNAC", "SEAC", "SENAC"]
 
 
 def create_experiment(args) -> Experimenter:
@@ -202,7 +202,14 @@ def create_experiment(args) -> Experimenter:
                               capacity=capacity, device=device, master=master, agent_list=agent_list,
                               batch_size=batch_size, n_steps=n_steps, is_discrete=is_discrete)
             agent_list.append(agent)
-
+    # Several references to the same agent (shared network and experience)
+    elif agent_type == "SENAC":
+        num_agents = len(env.agents)
+        agent = ACAgent(env.observation_shapes[env.agents[0]], env.action_shapes[env.agents[0]],
+                        capacity=capacity * num_agents, device=device, batch_size=batch_size,
+                        n_steps=n_steps, is_discrete=is_discrete)
+        for i in range(num_agents):
+            agent_list.append(agent)
     # Individual agents with access to each other
     elif agent_type == "SEAC":
         for agent_id in env.agents:
