@@ -142,3 +142,30 @@ class SEACAgent(ACAgent):
             torch.nn.utils.clip_grad_norm_(self.critic.parameters(), self.grad_clip)
             self.critic_optimizer.step()
 
+class SNACAgent(ACAgent):
+    def __init__(self, obs_shape, action_shape, capacity, device, master, agent_list, **kwargs):
+        super(SNACAgent, self).__init__(obs_shape, action_shape, capacity, device, **kwargs)
+        self.agent_list = agent_list
+        self.master = master
+        if not self.master is None:
+            self.actor = self.master.actor
+    def learn(self, num_steps=50):
+        if self.master is None:
+            for it in range(num_steps):
+                actor_loss = torch.zeros(1)
+                critic_loss = torch.zeros(1)
+                for agent in self.agent_list:
+                    states, actions, rewards, next_states, dones = agent.memory.sample_tensor(self.batch_size, self.device)
+
+                    _actor_loss, _critic_loss = self.calculate_loss(states, actions, rewards, next_states, dones)
+                    actor_loss += _actor_loss
+                    critic_loss += _critic_loss
+                self.actor_optimizer.zero_grad()
+                torch.nn.utils.clip_grad_norm_(self.actor.parameters(), self.grad_clip)
+                actor_loss.backward()
+                self.actor_optimizer.step()
+
+                self.critic_optimizer.zero_grad()
+                torch.nn.utils.clip_grad_norm_(self.critic.parameters(), self.grad_clip)
+                critic_loss.backward()
+                self.critic_optimizer.step()

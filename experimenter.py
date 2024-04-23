@@ -11,7 +11,7 @@ import concurrent
 import matplotlib.pyplot as plt
 
 from environments import ProjectBaseEnv, RwareEnvironment, ForagingEnvironment, PettingZooEnvironment
-from agent import ACAgent, SEACAgent
+from agent import ACAgent, SEACAgent, SNACAgent
 from experience_replay import EpisodicExperienceReplay
 from utils import seed_everything
 
@@ -183,26 +183,30 @@ def create_experiment(args) -> Experimenter:
 
     # Individual agents with no access to each other
     if agent_type == "IAC":
-        for agent in env.agents:
-            agent = ACAgent(env.observation_shapes[agent], env.action_shapes[agent],
+        for agent_id in env.agents:
+            agent = ACAgent(env.observation_shapes[agent_id], env.action_shapes[agent_id],
                             capacity=capacity, device=device, batch_size=batch_size,
                             n_steps=n_steps, is_discrete=is_discrete)
             agent_list.append(agent)
 
-    # Several references to the same agent (shared network)
+    # Agents use a single actor network, and the master calculates loss from all memories
     elif agent_type == "SNAC":
         num_agents = len(env.agents)
-        #  TODO: update agent.py
-        agent = ACAgent(env.observation_shapes[env.agents[0]], env.action_shapes[env.agents[0]],
-                        capacity=capacity * num_agents, device=device, batch_size=batch_size,
-                        n_steps=n_steps, is_discrete=is_discrete)
-        for i in range(num_agents):
+        master = SNACAgent(env.observation_shapes[env.agents[0]], env.action_shapes[env.agents[0]],
+                           capacity=capacity * num_agents, device=device, master=None, agent_list=agent_list,
+                           batch_size=batch_size, n_steps=n_steps, is_discrete=is_discrete)
+        agent_list.append(master)
+        for i in range(1, num_agents):
+            agent_id = env.agents[i]
+            agent = SNACAgent(env.observation_shapes[agent_id], env.action_shapes[agent_id],
+                              capacity=capacity, device=device, master=master, agent_list=agent_list,
+                              batch_size=batch_size, n_steps=n_steps, is_discrete=is_discrete)
             agent_list.append(agent)
 
     # Individual agents with access to each other
     elif agent_type == "SEAC":
-        for agent in env.agents:
-            agent = SEACAgent(env.observation_shapes[agent], env.action_shapes[agent],
+        for agent_id in env.agents:
+            agent = SEACAgent(env.observation_shapes[agent_id], env.action_shapes[agent_id],
                               capacity=capacity, device=device,
                               agent_list=agent_list, lambda_value=se_lambda_value, batch_size=batch_size,
                               n_steps=n_steps, is_discrete=is_discrete)
