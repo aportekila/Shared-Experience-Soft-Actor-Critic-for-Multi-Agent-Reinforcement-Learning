@@ -11,7 +11,7 @@ if __name__ == "__main__":
                            choices=["multiwalker", "waterwold", "rware-tiny-4ag-v1", "Foraging-10x10-3p-3f-v2"])
     argparser.add_argument("--agent_type", type=str, default="SEAC", choices=["IAC", "SNAC", "SEAC", "SESAC"])
     argparser.add_argument("--episode_max_length", type=int, default=None)
-    argparser.add_argument("--total_env_steps", type=int, default=50_000_000)
+    argparser.add_argument("--total_env_steps", type=int, default=5_000_000)
     argparser.add_argument("--warmup_episodes", type=int, default=0)
     argparser.add_argument("--pretrain_path", type=str, default=None)
     argparser.add_argument("--save_path", type=str, default="logs/")
