@@ -108,32 +108,30 @@ class SEACAgent(ACAgent):
         self.agent_list = agent_list
         self.lambda_value = lambda_value
 
-    def learn(self, num_steps=50):
-        for it in range(num_steps):
-            states, actions, rewards, next_states, dones = self.memory.sample_tensor(self.batch_size, self.device)
-            log_props = self.actor.forward(states).log_prob(actions).view(self.batch_size)
-            actor_loss, critic_loss = self.calculate_loss(states, actions, rewards, next_states, dones)
+    def learn(self):
+        states, actions, returns = self.memory.sample_tensor(self.device)
+        batch_size = states.shape[0]
+        
+        log_props = self.actor.forward(states).log_prob(actions).view(batch_size, -1)
+        
+        actor_loss, critic_loss = self.calculate_loss(states, actions, returns)
 
-            for agent in self.agent_list:
-                if agent != self:
-                    states, actions, rewards, next_states, dones = agent.memory.sample_tensor(self.batch_size,
-                                                                                              self.device)
-                    log_props_i, _, advantages_i = agent.calculate_loss_terms(states, actions, rewards, next_states,
-                                                                              dones)
-                    importance_weight = (log_props.exp() / (log_props_i.exp() + 1e-7)).detach()
+        for agent in self.agent_list:
+            if agent != self:
+                states, actions, returns = agent.memory.sample_tensor(self.device)
+                log_props_i, _, advantages_i = agent.calculate_loss_terms(states, actions, returns)
+                importance_weight = (log_props.exp() / (log_props_i.exp() + 1e-7)).detach()
 
-                    actor_loss += self.lambda_value * (importance_weight * -log_props * advantages_i.detach()).mean()
-                    critic_loss += self.lambda_value * (importance_weight * torch.square(advantages_i)).mean()
+                actor_loss += self.lambda_value * (importance_weight * -log_props * advantages_i.detach()).mean()
+                critic_loss += self.lambda_value * (importance_weight * torch.square(advantages_i)).mean()
 
-            self.actor_optimizer.zero_grad()
-            actor_loss.backward()
-            torch.nn.utils.clip_grad_norm_(self.actor.parameters(), self.grad_clip)
-            self.actor_optimizer.step()
+        self.actor_optimizer.zero_grad()
+        actor_loss.backward()
+        torch.nn.utils.clip_grad_norm_(self.actor.parameters(), self.grad_clip)
+        self.actor_optimizer.step()
 
-            self.critic_optimizer.zero_grad()
-            critic_loss.backward()
-            torch.nn.utils.clip_grad_norm_(self.critic.parameters(), self.grad_clip)
-            self.critic_optimizer.step()
+        self.critic_optimizer.zero_grad()
+        critic_loss.backward()
+        torch.nn.utils.clip_grad_norm_(self.critic.parameters(), self.grad_clip)
+        self.critic_optimizer.step()
 
-            # Critic target soft update
-            self.soft_update()

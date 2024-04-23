@@ -167,7 +167,7 @@ class Experimenter(object):
                 
         return episode_reward, episode_length
 
-implemented_agent_types = ["IAC", "SNAC"]
+implemented_agent_types = ["IAC", "SNAC", "SEAC"]
 
 
 def create_experiment(args) -> Experimenter:
