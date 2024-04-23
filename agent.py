@@ -25,7 +25,6 @@ class ACAgent(object):
 
         self.actor = ActorPolicyNet(obs_shape, action_shape, hidden_size, is_discrete=is_discrete).to(device)
         self.critic = CriticValueNet(obs_shape, hidden_size).to(device)
-        self.critic_target = CriticValueNet(obs_shape, hidden_size).to(device)
 
         self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), lr=learning_rate, eps=adam_eps)
         self.critic_optimizer = torch.optim.Adam(self.critic.parameters(), lr=learning_rate, eps=adam_eps)
@@ -67,7 +66,7 @@ class ACAgent(object):
         state_values = self.critic.forward(states)
 
         with torch.no_grad():
-            next_state_values = self.critic_target.forward(next_states)
+            next_state_values = self.critic.forward(next_states)
 
         # Estimate advantage
         advantages = rewards.view(-1, 1) + (1 - dones.view(-1, 1)) * (self.gamma ** self.n_steps) * next_state_values - state_values
@@ -90,15 +89,15 @@ class ACAgent(object):
 
             actor_loss, critic_loss = self.calculate_loss(states, actions, rewards, next_states, dones)
             self.actor_optimizer.zero_grad()
+            torch.nn.utils.clip_grad_norm_(self.actor.parameters(), self.grad_clip)
             actor_loss.backward()
             self.actor_optimizer.step()
 
             self.critic_optimizer.zero_grad()
+            torch.nn.utils.clip_grad_norm_(self.critic.parameters(), self.grad_clip)
             critic_loss.backward()
             self.critic_optimizer.step()
 
-            # Critic target soft update
-            self.soft_update()
 
     def save(self, path):
         params = {
@@ -111,12 +110,6 @@ class ACAgent(object):
         params = torch.load(path, map_location=self.device)
         self.actor.load_state_dict(params['actor'])
         self.critic.load_state_dict(params['critic'])
-        self.critic_target.load_state_dict(params['critic'])
-
-    def soft_update(self):
-        for target_param, local_param in zip(self.critic_target.parameters(), self.critic.parameters()):
-            target_param.data.copy_(self.tau * local_param.data + (1.0 - self.tau) * target_param.data)
-
 
 class SEACAgent(ACAgent):
     def __init__(self, obs_shape, action_shape, capacity, device, agent_list, lambda_value=1.0, **kwargs):
@@ -129,7 +122,6 @@ class SEACAgent(ACAgent):
             states, actions, rewards, next_states, dones = self.memory.sample_tensor(self.batch_size, self.device)
             log_props = self.actor.forward(states).log_prob(actions).view(self.batch_size)
             actor_loss, critic_loss = self.calculate_loss(states, actions, rewards, next_states, dones)
-
             for agent in self.agent_list:
                 if agent != self:
                     states, actions, rewards, next_states, dones = agent.memory.sample_tensor(self.batch_size,
@@ -137,17 +129,16 @@ class SEACAgent(ACAgent):
                     log_props_i, _, advantages_i = agent.calculate_loss_terms(states, actions, rewards, next_states,
                                                                               dones)
                     importance_weight = (log_props.exp() / (log_props_i.exp() + 1e-7)).detach()
-
                     actor_loss += self.lambda_value * (importance_weight * -log_props * advantages_i.detach()).mean()
-                    critic_loss += self.lambda_value * (importance_weight * torch.square(advantages_i)).mean()
+                    critic_loss += self.value_loss_coeff * self.lambda_value * (importance_weight * torch.square(advantages_i)).mean()
 
             self.actor_optimizer.zero_grad()
             actor_loss.backward()
+            torch.nn.utils.clip_grad_norm_(self.actor.parameters(), self.grad_clip)
             self.actor_optimizer.step()
 
             self.critic_optimizer.zero_grad()
             critic_loss.backward()
+            torch.nn.utils.clip_grad_norm_(self.critic.parameters(), self.grad_clip)
             self.critic_optimizer.step()
 
-            # Critic target soft update
-            self.soft_update()

@@ -138,6 +138,7 @@ class Experimenter(object):
                     plt.xlabel("Time Steps")
                     plt.ylabel("Episode Rewards")
                     plt.title(f"{args.env} - {args.agent_type}")
+                    plt.savefig(f"{self.save_path}/results.png")
                     plt.savefig(f"{self.save_path}/results.svg")
                     plt.close()
                     np.save(f"{self.save_path}/experiment_history.npy", self.experiment_history)
@@ -162,9 +163,9 @@ def create_experiment(args) -> Experimenter:
 
     # Handle different env types:
     if "rware" in env_name.lower():
-        env = RwareEnvironment(max_steps=episode_max_length)
+        env = RwareEnvironment(env_name=env_name, max_steps=episode_max_length)
     elif "foraging" in env_name.lower():
-        env = ForagingEnvironment(max_steps=episode_max_length)
+        env = ForagingEnvironment(env_name=env_name, max_steps=episode_max_length)
     elif "multiwalker" in env_name.lower():
         env = PettingZooEnvironment(env_name="multiwalker", max_steps=episode_max_length)
     elif "waterworld" in env_name.lower():

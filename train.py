@@ -23,7 +23,7 @@ if __name__ == "__main__":
 
     argparser.add_argument("--update_frequency", type=int, default=2,
                            help="Number of episodes between updates")  # allows multiple episodes to be used for a single update
-    argparser.add_argument("--num_gradient_steps", type=int, default=5)
+    argparser.add_argument("--num_gradient_steps", type=int, default=1)
     argparser.add_argument("--batch_size", type=int, default=128)
     argparser.add_argument("--verbose", type=int, default=0, choices=[0, 1, 2])
 
@@ -32,7 +32,7 @@ if __name__ == "__main__":
     argparser.add_argument("--n_steps", type=int, default=5)
 
     # SEAC related
-    argparser.add_argument("--SEAC_lambda_value", type=float, default=1.0)
+    argparser.add_argument("--SEAC_lambda_value", type=float, default=0.1)
 
     args = argparser.parse_args()
     args.device = "cuda" if torch.cuda.is_available() else "cpu"

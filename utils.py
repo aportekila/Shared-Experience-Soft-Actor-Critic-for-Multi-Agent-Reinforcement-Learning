@@ -1,6 +1,7 @@
 import random
 import numpy as np
 import torch
+import gymnasium as gym
 
 
 def seed_everything(seed: int):
@@ -10,4 +11,5 @@ def seed_everything(seed: int):
     torch.cuda.manual_seed_all(seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
+    gym.utils.seeding.np_random(seed)
     
