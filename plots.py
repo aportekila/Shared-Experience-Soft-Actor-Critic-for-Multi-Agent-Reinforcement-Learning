@@ -6,10 +6,12 @@ import numpy as np
 import seaborn as sns
 from matplotlib import pyplot as plt
 
+
 def smooth(y, radius=0):
     convkernel = np.ones(2 * radius + 1)
     out = np.convolve(y, convkernel, mode='same') / np.convolve(np.ones_like(y), convkernel, mode='same')
     return out
+
 
 if __name__ == "__main__":
     argparser = argparse.ArgumentParser()
@@ -50,7 +52,6 @@ if __name__ == "__main__":
             # smooth
             reward_mean = smooth(reward_mean, args.smoothing)
             reward_std = smooth(reward_std, args.smoothing)
-            
 
         # Plot for this algo
         plt.plot(time_steps, reward_mean, label=algo)
@@ -60,7 +61,7 @@ if __name__ == "__main__":
     plt.xlabel('Environment steps')
     plt.ylabel('Episode return')
     plt.title(f"{args.env} evaluation")
-    plt.legend()
+    plt.legend(loc='lower right')
     plt.savefig(f"logs/{args.env}_plot.png")
     plt.savefig(f"logs/{args.env}_plot.svg")
     plt.show()
