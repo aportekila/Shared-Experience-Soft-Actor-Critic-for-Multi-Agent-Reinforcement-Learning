@@ -6,10 +6,15 @@ import numpy as np
 import seaborn as sns
 from matplotlib import pyplot as plt
 
+def smooth(y, radius=0):
+    convkernel = np.ones(2 * radius + 1)
+    out = np.convolve(y, convkernel, mode='same') / np.convolve(np.ones_like(y), convkernel, mode='same')
+    return out
+
 if __name__ == "__main__":
     argparser = argparse.ArgumentParser()
     argparser.add_argument("--env", type=str, default="Foraging-10x10-3p-3f-v2")
-    argparser.add_argument("--smoothing", type=int, default=13)
+    argparser.add_argument("--smoothing", type=int, default=30)
 
     args = argparser.parse_args()
 
@@ -42,11 +47,10 @@ if __name__ == "__main__":
 
         # Perform smoothing
         if args.smoothing is not None:
-            if args.smoothing < 1 or args.smoothing % 2 == 0:
-                raise ValueError(f"Smoothing must be an odd integer greater than 1")
-            kernel = np.ones(args.smoothing)
-            reward_mean = np.convolve(reward_mean, kernel, mode='same')
-            reward_std = np.convolve(reward_std, kernel, mode='same')
+            # smooth
+            reward_mean = smooth(reward_mean, args.smoothing)
+            reward_std = smooth(reward_std, args.smoothing)
+            
 
         # Plot for this algo
         plt.plot(time_steps, reward_mean, label=algo)
