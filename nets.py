@@ -31,6 +31,10 @@ class CriticValueNet(nn.Module):
 
     def forward(self, x):
         return self.arch(x)
+    
+class CriticNet(CriticValueNet):
+    def __init__(self, state_size, action_size, hidden_size=64):
+        super(CriticNet, self).__init__(state_size + action_size, hidden_size)
 
 
 from torch.distributions.transforms import TanhTransform
