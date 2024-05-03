@@ -171,7 +171,7 @@ def create_experiment(args) -> Experimenter:
     elif "waterworld" in env_name.lower():
         env = PettingZooEnvironment(env_name="waterworld", max_steps=episode_max_length)
     else:
-        env = ProjectBaseEnv()
+        raise NotImplementedError(f"Environment {env_name} not implemented")
 
     is_discrete = env.is_discrete
     # TODO: Support for multiple lists / teams (e.g. team based where a subset of agents have access to each other)

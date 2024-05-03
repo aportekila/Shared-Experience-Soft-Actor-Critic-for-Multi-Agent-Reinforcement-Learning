@@ -161,7 +161,7 @@ class PettingZooEnvironment(ProjectBaseEnv):
         env_name = kwargs.pop("env_name")
         max_steps = kwargs.pop("max_steps") or 500
         if env_name == "multiwalker":
-            self.env = multiwalker_v9.parallel_env(max_cycles=max_steps)
+            self.env = multiwalker_v9.parallel_env(max_cycles=max_steps, shared_reward=False)
         elif env_name == "waterworld":
             self.env = waterworld_v4.parallel_env(max_cycles=max_steps)
         else:

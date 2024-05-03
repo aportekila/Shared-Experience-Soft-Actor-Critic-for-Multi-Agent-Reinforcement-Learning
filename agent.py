@@ -120,7 +120,7 @@ class SEACAgent(ACAgent):
     def learn(self, num_steps=50):
         for it in range(num_steps):
             states, actions, rewards, next_states, dones = self.memory.sample_tensor(self.batch_size, self.device)
-            log_props = self.actor.forward(states).log_prob(actions).view(self.batch_size)
+            log_props = self.actor.forward(states).log_prob(actions.clamp(-1 + 1e-6, 1 - 1e-6)).view(self.batch_size, -1)
             actor_loss, critic_loss = self.calculate_loss(states, actions, rewards, next_states, dones)
             for agent in self.agent_list:
                 if agent != self:
