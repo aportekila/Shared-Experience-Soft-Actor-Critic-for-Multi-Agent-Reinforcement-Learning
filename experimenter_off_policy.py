@@ -31,8 +31,12 @@ class OffPolicyExperimenter(object):
             "mean_length": [],
             "std_length": []
         }
+        
+        self.temp_memories = []  # for n-step TD learning
 
     def generate_episode(self, render: bool = False, training: bool = True) -> tuple[np.float64, int]:
+        self.temp_memories.append(
+            {agent_id: EpisodicExperienceReplay(self.env.max_steps) for agent_id in self.agent_names})
         states, info = self.env.reset()
         episode_reward = 0
         episode_length = 0
@@ -48,8 +52,9 @@ class OffPolicyExperimenter(object):
             done = np.all(list(terminated.values())) or np.all(list(truncated.values()))
 
             if training:
-                for agent, agent_id in zip(self.learning_agents, self.agent_names):
-                    agent.remember(states[agent_id], actions[agent_id], rewards[agent_id], next_states[agent_id], done)
+                for agent_id, memory in self.temp_memories[-1].items():
+                    memory.push(states[agent_id], actions[agent_id], rewards[agent_id],
+                                next_states[agent_id], done and 1 or 0)
 
             states = next_states
             episode_length += 1
@@ -58,6 +63,17 @@ class OffPolicyExperimenter(object):
             if render:
                 self.env.render()
 
+        # n-step TD learning
+        if training:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=self.n_agents) as executor:
+                for agent_id, memory in enumerate(self.temp_memories[-1].values()):
+                    executor.submit(memory.convert_to_n_step, n_steps=self.learning_agents[agent_id].n_steps,
+                                    gamma=self.learning_agents[agent_id].gamma)
+
+            with concurrent.futures.ThreadPoolExecutor(max_workers=self.n_agents) as executor:
+                for agent_id, memory in enumerate(self.temp_memories[-1].values()):
+                    executor.map(self.learning_agents[agent_id].remember_tuple, memory.memory)
+                    
         return episode_reward, episode_length
 
     def learn(self, num_steps: int = 50):
@@ -99,7 +115,7 @@ class OffPolicyExperimenter(object):
                 if args.verbose > 0:
                     print(f"Episode {episode}: {reward}, length: {length}")
 
-                if len(self.learning_agents[0].memory) > self.args.batch_size:
+                if episode % args.update_frequency == 0 and len(self.learning_agents[0].memory) > self.args.batch_size:
                     self.learn(num_steps=args.num_gradient_steps)
                     
                 if episode % args.evaluate_frequency == 0 or episode == num_episodes - 1:
@@ -138,6 +154,7 @@ def create_of_policy_experiment(args) -> OffPolicyExperimenter:
     batch_size: int = args.batch_size
     capacity: int = args.buffer_size
     episode_max_length: int = args.episode_max_length
+    n_steps: int = args.n_steps
     seed: int = args.seed
 
     assert (agent_type in implemented_agent_types)
@@ -166,7 +183,7 @@ def create_of_policy_experiment(args) -> OffPolicyExperimenter:
     if agent_type == "ISAC":
         for agent_id in env.agents:
             agent = SACAgent(env.observation_shapes[agent_id], env.action_shapes[agent_id],
-                            capacity=capacity, device=device, batch_size=batch_size, is_discrete=is_discrete)
+                            capacity=capacity, device=device, batch_size=batch_size, n_steps=n_steps, is_discrete=is_discrete)
             agent_list.append(agent)
 
     

@@ -11,7 +11,7 @@ from nets import ActorPolicyNet, CriticNet
 class SACAgent(object):
     def __init__(self, obs_shape, action_shape, capacity, device, hidden_size=256, adam_eps=1e-3, gamma=0.99,
                  entropy_coeff=0.01, value_loss_coeff=0.5, learning_rate=3e-4, grad_clip=0.5, tau=5e-4, batch_size=256,
-                 is_discrete=True, n_critics=2):
+                 n_steps=5, is_discrete=True, n_critics=2):
         self.device = device
         self.batch_size = batch_size
         self.gamma = gamma
@@ -21,6 +21,7 @@ class SACAgent(object):
         self.tau = tau
         self.capacity = capacity
         self.n_critics = n_critics
+        self.n_steps = n_steps
 
         self.memory = ExperienceReplay(capacity)
 
@@ -66,7 +67,7 @@ class SACAgent(object):
             return
         for it in range(num_steps):
             states, actions, rewards, next_states, dones = self.memory.sample_tensor(self.batch_size, self.device)
-
+            
             # Update critics
             with torch.no_grad():
                 next_actions_dist = self.actor(next_states)
@@ -74,13 +75,17 @@ class SACAgent(object):
                     next_actions = next_actions_dist.sample()
                     next_log_probs = next_actions_dist.log_prob(next_actions)
                     next_actions, next_log_probs = next_actions.reshape(-1, 1), next_log_probs.reshape(-1, 1)
+                else:
+                    next_actions = next_actions_dist.rsample()
+                    next_log_probs = next_actions_dist.log_prob(next_actions).sum(dim=-1, keepdim=True)
+                
                 critic_next_input = torch.cat([next_states, next_actions], -1)
                 next_qs = torch.stack([critic(critic_next_input) for critic in self.target_critics], dim=0)
                 next_q = torch.min(next_qs, dim=0).values
                 next_q -= self.entropy_coeff * next_log_probs
                 target_q = rewards.reshape(-1, 1) + self.gamma * (1 - dones.reshape(-1, 1)) * next_q
                 
-            critic_input = torch.cat([states, actions.reshape(-1, 1)], -1)
+            critic_input = torch.cat([states, actions.reshape(self.batch_size, -1)], -1)
             qs = torch.stack([critic(critic_input) for critic in self.critics], dim=0)
             critic_loss = (qs - target_q).pow(2).mean()
             self.critic_optimizer.zero_grad()
@@ -88,12 +93,16 @@ class SACAgent(object):
             torch.nn.utils.clip_grad_norm_(self.critics.parameters(), self.grad_clip)
             self.critic_optimizer.step()
             
+            
             # Update actor
             actions_dist = self.actor(states)
             if self.actor.is_discrete:
                 actions = actions_dist.sample()
                 log_probs = actions_dist.log_prob(actions)
                 actions, log_probs = actions.reshape(-1, 1), log_probs.reshape(-1, 1)
+            else:
+                actions = actions_dist.rsample()
+                log_probs = actions_dist.log_prob(actions).sum(dim=-1, keepdim=True)
                 
             critic_input = torch.cat([states, actions], -1)
             qs = torch.stack([critic(critic_input) for critic in self.critics], dim=0)
@@ -104,6 +113,7 @@ class SACAgent(object):
             torch.nn.utils.clip_grad_norm_(self.actor.parameters(), self.grad_clip)
             self.actor_optimizer.step()
             
+            print(f'Actor Loss: {actor_loss.item():.5f} | Critic Loss: {critic_loss.item():.5f} | Q: {q.mean().item():.5f} | Entropy: {-log_probs.mean().item():.5f}')
             self.soft_update()
             
 
