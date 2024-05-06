@@ -2,6 +2,7 @@ from abc import abstractmethod
 from typing import Tuple, List
 
 import gymnasium as gym
+import numpy as np
 import rware
 import lbforaging
 
@@ -29,6 +30,9 @@ class ProjectBaseEnv(ParallelEnv):
         raise NotImplementedError("Must be implemented in subclass")
 
     def step(self, actions: list) -> Tuple[dict, dict, dict, dict, dict]:
+        raise NotImplementedError("Must be implemented in subclass")
+
+    def render(self):
         raise NotImplementedError("Must be implemented in subclass")
 
 
@@ -155,6 +159,8 @@ class ForagingEnvironment(ProjectBaseEnv):
 
         return observations, rewards, terminateds, trancateds, infos
 
+    def render(self):
+        self.env.render()
 
 class PettingZooEnvironment(ProjectBaseEnv):
     def __init__(self, **kwargs):
@@ -202,3 +208,6 @@ class PettingZooEnvironment(ProjectBaseEnv):
         self.timestep += 1
         self.agents = self.env.agents
         return observations, rewards, terminates, truncates, infos
+
+    def render(self):
+        self.env.render()
