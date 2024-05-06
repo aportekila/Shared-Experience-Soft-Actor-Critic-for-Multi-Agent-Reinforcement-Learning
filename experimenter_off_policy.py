@@ -11,7 +11,7 @@ import concurrent
 import matplotlib.pyplot as plt
 
 from environments import ProjectBaseEnv, RwareEnvironment, ForagingEnvironment, PettingZooEnvironment
-from agent_off_policy import SACAgent
+from agent_off_policy import SACAgent, SESACAgent
 from experience_replay import EpisodicExperienceReplay
 from utils import seed_everything
 
@@ -31,7 +31,7 @@ class OffPolicyExperimenter(object):
             "mean_length": [],
             "std_length": []
         }
-        
+
         self.temp_memories = []  # for n-step TD learning
 
     def generate_episode(self, render: bool = False, training: bool = True) -> tuple[np.float64, int]:
@@ -73,7 +73,7 @@ class OffPolicyExperimenter(object):
             with concurrent.futures.ThreadPoolExecutor(max_workers=self.n_agents) as executor:
                 for agent_id, memory in enumerate(self.temp_memories[-1].values()):
                     executor.map(self.learning_agents[agent_id].remember_tuple, memory.memory)
-                    
+
         return episode_reward, episode_length
 
     def learn(self, num_steps: int = 50):
@@ -117,7 +117,7 @@ class OffPolicyExperimenter(object):
 
                 if episode % args.update_frequency == 0 and len(self.learning_agents[0].memory) > self.args.batch_size:
                     self.learn(num_steps=args.num_gradient_steps)
-                    
+
                 if episode % args.evaluate_frequency == 0 or episode == num_episodes - 1:
                     result = self.evaluate_policies(args.evaluate_episodes, render=args.render)
                     self.experiment_history["episode"].append(episode)
@@ -143,7 +143,7 @@ class OffPolicyExperimenter(object):
                     np.save(f"{self.save_path}/experiment_history.npy", self.experiment_history)
 
 
-implemented_agent_types = ["ISAC"]
+implemented_agent_types = ["ISAC", "SESAC"]
 
 
 def create_of_policy_experiment(args) -> OffPolicyExperimenter:
@@ -183,10 +183,20 @@ def create_of_policy_experiment(args) -> OffPolicyExperimenter:
     if agent_type == "ISAC":
         for agent_id in env.agents:
             agent = SACAgent(env.observation_shapes[agent_id], env.action_shapes[agent_id],
-                            capacity=capacity, device=device, batch_size=batch_size, n_steps=n_steps, is_discrete=is_discrete)
+                             capacity=capacity, device=device, batch_size=batch_size, n_steps=n_steps,
+                             is_discrete=is_discrete)
             agent_list.append(agent)
-
-    
+    # SESAC agent which is just ISAC but with shared experience replay buffer.
+    # Init with mem reference and proportional capacity.
+    elif agent_type == "SESAC":
+        mem = None  # None results in ISAC initialization
+        for agent_id in env.agents:
+            agent = SESACAgent(mem, env.observation_shapes[agent_id], env.action_shapes[agent_id],
+                               capacity=capacity * len(env.agents), device=device, batch_size=batch_size,
+                               n_steps=n_steps, is_discrete=is_discrete)
+            if len(agent_list) == 0:
+                mem = agent.memory
+            agent_list.append(agent)
 
     if args.pretrain_path is not None:
         for agent_id, agent in enumerate(agent_list):

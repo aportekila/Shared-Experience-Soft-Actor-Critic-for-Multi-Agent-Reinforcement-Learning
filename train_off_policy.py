@@ -7,10 +7,10 @@ from experimenter_off_policy import create_of_policy_experiment
 
 if __name__ == "__main__":
     argparser = argparse.ArgumentParser()
-    argparser.add_argument("--env", type=str, default="waterworld",
+    argparser.add_argument("--env", type=str, default="rware-tiny-4ag-v1",
                            choices=["multiwalker", "waterworld", "rware-tiny-4ag-v1", "Foraging-10x10-3p-3f-v2", "rware-tiny-4ag-easy-v1"])
-    argparser.add_argument("--agent_type", type=str, default="ISAC",
-                           choices=["ISAC"])
+    argparser.add_argument("--agent_type", type=str, default="SESAC",
+                           choices=["ISAC","SESAC"])
     argparser.add_argument("--episode_max_length", type=int, default=None)
     argparser.add_argument("--total_env_steps", type=int, default=5_000_000)
     argparser.add_argument("--warmup_episodes", type=int, default=0)
