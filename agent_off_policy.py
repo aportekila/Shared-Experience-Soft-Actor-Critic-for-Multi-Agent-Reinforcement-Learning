@@ -10,7 +10,7 @@ from nets import ActorPolicyNet, CriticNet
 
 class SACAgent(object):
     def __init__(self, obs_shape, action_shape, capacity, device, hidden_size=256, adam_eps=1e-3, gamma=0.99,
-                 entropy_coeff=0.01, value_loss_coeff=0.5, learning_rate=3e-4, grad_clip=0.5, tau=8e-3, batch_size=256,
+                 entropy_coeff=0.05, value_loss_coeff=0.5, learning_rate=3e-4, grad_clip=0.5, tau=8e-3, batch_size=256,
                  n_steps=5, is_discrete=True, n_critics=2):
         self.device = device
         self.batch_size = batch_size

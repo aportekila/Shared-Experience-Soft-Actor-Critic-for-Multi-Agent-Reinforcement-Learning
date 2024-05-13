@@ -32,11 +32,7 @@ class OffPolicyExperimenter(object):
             "std_length": []
         }
 
-        self.temp_memories = []  # for n-step TD learning
-
     def generate_episode(self, render: bool = False, training: bool = True) -> tuple[np.float64, int]:
-        self.temp_memories.append(
-            {agent_id: EpisodicExperienceReplay(self.env.max_steps) for agent_id in self.agent_names})
         states, info = self.env.reset()
         episode_reward = 0
         episode_length = 0
@@ -52,9 +48,9 @@ class OffPolicyExperimenter(object):
             done = np.all(list(terminated.values())) or np.all(list(truncated.values()))
 
             if training:
-                for agent_id, memory in self.temp_memories[-1].items():
-                    memory.push(states[agent_id], actions[agent_id], rewards[agent_id],
-                                next_states[agent_id], done and 1 or 0)
+                for agent, agent_id in zip(self.learning_agents, self.agent_names):
+                    agent.remember(states[agent_id], actions[agent_id], rewards[agent_id],
+                                   next_states[agent_id], done and 1 or 0)
 
             states = next_states
             episode_length += 1
@@ -63,17 +59,6 @@ class OffPolicyExperimenter(object):
             if render:
                 self.env.render()
 
-        # n-step TD learning
-        if training:
-            with concurrent.futures.ThreadPoolExecutor(max_workers=self.n_agents) as executor:
-                for agent_id, memory in enumerate(self.temp_memories[-1].values()):
-                    executor.submit(memory.convert_to_n_step, n_steps=self.learning_agents[agent_id].n_steps,
-                                    gamma=self.learning_agents[agent_id].gamma)
-
-            with concurrent.futures.ThreadPoolExecutor(max_workers=self.n_agents) as executor:
-                for agent_id, memory in enumerate(self.temp_memories[-1].values()):
-                    executor.map(self.learning_agents[agent_id].remember_tuple, memory.memory)
-
         return episode_reward, episode_length
 
     def learn(self, num_steps: int = 50):
@@ -81,7 +66,6 @@ class OffPolicyExperimenter(object):
             agent.learn(num_steps=num_steps)
 
     def clear_experience(self):
-        self.temp_memories = []
         for agent in self.learning_agents:
             agent.memory.clear()
 
@@ -114,7 +98,6 @@ class OffPolicyExperimenter(object):
                 reward, length = self.generate_episode(training=True)
                 if args.verbose > 0:
                     print(f"Episode {episode}: {reward}, length: {length}")
-
                 if episode % args.update_frequency == 0 and len(self.learning_agents[0].memory) > self.args.batch_size:
                     self.learn(num_steps=args.num_gradient_steps)
 
