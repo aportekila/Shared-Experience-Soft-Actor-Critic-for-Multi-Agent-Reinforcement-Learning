@@ -5,7 +5,7 @@ import copy
 from typing import Tuple, List, Union, Dict, Any
 
 from experience_replay import ExperienceReplay
-from nets import ActorPolicyNet, CriticNet
+from nets import ActorPolicyNet, CriticNet, CriticValueNet
 
 
 class SACAgent(object):
@@ -35,7 +35,7 @@ class SACAgent(object):
                  range(n_critics)])
         elif value_function_type == "V":
             self.critics = torch.nn.ModuleList(
-                [CriticNet(obs_shape, 1, hidden_size).to(device) for _ in range(n_critics)])
+                [CriticValueNet(obs_shape, hidden_size).to(device) for _ in range(n_critics)])
         else:
             raise ValueError("Invalid value function type. Choose either 'Q' or 'V'.")
         
@@ -96,13 +96,13 @@ class SACAgent(object):
                     next_actions = next_actions_dist.rsample()
                     next_log_probs = next_actions_dist.log_prob(next_actions).sum(dim=-1, keepdim=True)
 
-                critic_next_input = torch.cat([next_states, next_actions], -1)
+                critic_next_input = torch.cat([next_states, next_actions], -1) if self.value_function_type == "Q" else next_states
                 next_qs = torch.stack([critic(critic_next_input) for critic in self.target_critics], dim=0)
                 next_q = torch.min(next_qs, dim=0).values
                 next_q -= self.alpha * next_log_probs
                 target_q = rewards.reshape(-1, 1) + self.gamma * (1 - dones.reshape(-1, 1)) * next_q
 
-            critic_input = torch.cat([states, actions.reshape(self.batch_size, -1)], -1)
+            critic_input = torch.cat([states, actions.reshape(self.batch_size, -1)], -1) if self.value_function_type == "Q" else states
             qs = torch.stack([critic(critic_input) for critic in self.critics], dim=0)
             critic_loss = (qs - target_q).pow(2).mean()
             self.critic_optimizer.zero_grad()
@@ -120,7 +120,7 @@ class SACAgent(object):
                 actions = actions_dist.rsample()
                 log_probs = actions_dist.log_prob(actions).sum(dim=-1, keepdim=True)
 
-            critic_input = torch.cat([states, actions], -1)
+            critic_input = torch.cat([states, actions], -1) if self.value_function_type == "Q" else states
             qs = torch.stack([critic(critic_input) for critic in self.critics], dim=0)
             q = torch.min(qs, dim=0).values
             actor_loss = (self.alpha * log_probs - q).mean()
