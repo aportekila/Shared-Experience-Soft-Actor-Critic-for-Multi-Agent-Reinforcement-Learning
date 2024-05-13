@@ -113,7 +113,7 @@ class SACAgent(object):
             torch.nn.utils.clip_grad_norm_(self.actor.parameters(), self.grad_clip)
             self.actor_optimizer.step()
 
-            # print(f'Actor Loss: {actor_loss.item():.5f} | Critic Loss: {critic_loss.item():.5f} | Q: {q.mean().item():.5f} | Entropy: {-log_probs.mean().item():.5f}')
+            print(f'Actor Loss: {actor_loss.item():.5f} | Critic Loss: {critic_loss.item():.5f} | Q: {q.mean().item():.5f} | Entropy: {-log_probs.mean().item():.5f}')
             self.soft_update()
 
     def save(self, path):

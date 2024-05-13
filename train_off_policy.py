@@ -13,7 +13,7 @@ if __name__ == "__main__":
     argparser.add_argument("--agent_type", type=str, default="ISAC",
                            choices=["ISAC", "SESAC"])
     argparser.add_argument("--episode_max_length", type=int, default=None)
-    argparser.add_argument("--total_env_steps", type=int, default=50_000_000)
+    argparser.add_argument("--total_env_steps", type=int, default=5_000_000)
     argparser.add_argument("--warmup_episodes", type=int, default=0)
     argparser.add_argument("--pretrain_path", type=str, default=None)
     argparser.add_argument("--save_path", type=str, default="logs/")
@@ -25,7 +25,7 @@ if __name__ == "__main__":
 
     argparser.add_argument("--update_frequency", type=int, default=1,
                            help="Number of episodes between updates")  # allows multiple episodes to be used for a single update
-    argparser.add_argument("--num_gradient_steps", type=int, default=10)
+    argparser.add_argument("--num_gradient_steps", type=int, default=3)
     argparser.add_argument("--batch_size", type=int, default=128)
     argparser.add_argument("--verbose", type=int, default=0, choices=[0, 1, 2])
 
