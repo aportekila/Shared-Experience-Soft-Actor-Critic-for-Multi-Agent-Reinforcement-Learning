@@ -10,7 +10,8 @@ from tqdm import tqdm
 import concurrent
 import matplotlib.pyplot as plt
 
-from environments import ProjectBaseEnv, RwareEnvironment, ForagingEnvironment, PettingZooEnvironment
+from environments import ProjectBaseEnv, RwareEnvironment, ForagingEnvironment, PettingZooEnvironment, \
+    MountainCarEnvironment
 from agent_off_policy import SACAgent, SESACAgent
 from experience_replay import EpisodicExperienceReplay
 from utils import seed_everything
@@ -155,6 +156,8 @@ def create_of_policy_experiment(args) -> OffPolicyExperimenter:
         env = PettingZooEnvironment(env_name="multiwalker", max_steps=episode_max_length)
     elif "waterworld" in env_name.lower():
         env = PettingZooEnvironment(env_name="waterworld", max_steps=episode_max_length)
+    elif "mountaincar" in env_name.lower():
+        env = MountainCarEnvironment()
     else:
         env = ProjectBaseEnv()
 
@@ -165,6 +168,9 @@ def create_of_policy_experiment(args) -> OffPolicyExperimenter:
     env.reset(seed=seed)
     # Set seed for reproducibility
     seed_everything(seed)
+
+    print(env.observation_shapes[env.agents[0]])
+    print(env.action_shapes[env.agents[0]])
 
     # Individual agents with no access to each other
     if agent_type == "ISAC":

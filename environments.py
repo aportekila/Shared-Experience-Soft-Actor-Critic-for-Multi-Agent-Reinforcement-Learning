@@ -37,14 +37,11 @@ class ProjectBaseEnv(ParallelEnv):
 
 class MountainCarEnvironment(ProjectBaseEnv):
     def __init__(self,**kwargs):
-        self.env = gym.make('Pendulum-v1')
+        self.env = gym.make('MountainCarContinuous-v0')
         self.is_discrete = False
         self.possible_agents = [f"agent"]
         self.timestep = None
-        self.max_steps = 200
-
-        print(self.env.observation_space)
-        print(self.env.action_space)
+        self.max_steps = 999
 
         self.observation_spaces = {
             "agent": self.env.observation_space
@@ -55,7 +52,7 @@ class MountainCarEnvironment(ProjectBaseEnv):
         }
 
         self.observation_shapes = {
-            "agent": 3
+            "agent": 2
         }
 
         self.action_shapes = {

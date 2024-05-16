@@ -7,7 +7,7 @@ from experimenter_off_policy import create_of_policy_experiment
 
 if __name__ == "__main__":
     argparser = argparse.ArgumentParser()
-    argparser.add_argument("--env", type=str, default="Foraging-10x10-3p-3f-v2",
+    argparser.add_argument("--env", type=str, default="mountaincar",
                            choices=["multiwalker", "waterworld", "rware-tiny-4ag-v1", "Foraging-10x10-3p-3f-v2",
                                     "rware-tiny-4ag-easy-v1"])
     argparser.add_argument("--agent_type", type=str, default="ISAC",
@@ -36,7 +36,7 @@ if __name__ == "__main__":
     argparser.add_argument("--alpha", type=float, default=0.2)
     argparser.add_argument("--auto_alpha", default=True, type=lambda x: (str(x).lower() == 'true'))
     
-    argparser.add_argument("--value_function_type", type=str, default="V", choices=["Q", "V"], help="Q(s, a) or V(s)")
+    argparser.add_argument("--value_function_type", type=str, default="Q", choices=["Q", "V"], help="Q(s, a) or V(s)")
 
 
     args = argparser.parse_args()
