@@ -90,6 +90,60 @@ class MountainCarEnvironment(ProjectBaseEnv):
         self.env.render()
 
 
+class PendulumEnvironment(ProjectBaseEnv):
+    def __init__(self,**kwargs):
+        self.env = gym.make('Pendulum-v1')
+        self.is_discrete = False
+        self.possible_agents = [f"agent"]
+        self.timestep = None
+        self.max_steps = 200
+
+        self.observation_spaces = {
+            "agent": self.env.observation_space
+        }
+
+        self.action_spaces = {
+            "agent": self.env.action_space
+        }
+
+        self.observation_shapes = {
+            "agent": 3
+        }
+
+        self.action_shapes = {
+            "agent": 1
+        }
+
+    def reset(self, seed=None, options=None):
+        self.agents = copy(self.possible_agents)
+        self.timestep = 0
+        observation, info = self.env.reset(seed=seed, options=options)
+        observations = {
+            "agent": observation
+        }
+        infos = {
+            "agent": {}
+        }
+
+        return observations, infos
+
+    def step(self, actions):
+        observation, reward, terminated, truncated, info = self.env.step(actions[0])
+        self.timestep += 1
+        observations = {"agent": observation}
+        rewards = {"agent": reward}
+        terminateds = {"agent": terminated}
+        trancateds = {"agent": truncated}
+        infos = {"agent": {}}
+
+        if any(terminateds.values()) or any(trancateds.values()):
+            self.agents = []
+
+        return observations, rewards, terminateds, trancateds, infos
+
+    def render(self):
+        self.env.render()
+
 class RwareEnvironment(ProjectBaseEnv):
     def __init__(self, env_name='rware-tiny-4ag-v1', **kwargs):
         if kwargs["max_steps"] is None:

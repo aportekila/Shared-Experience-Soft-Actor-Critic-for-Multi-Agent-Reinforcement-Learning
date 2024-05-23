@@ -11,7 +11,7 @@ import concurrent
 import matplotlib.pyplot as plt
 
 from environments import ProjectBaseEnv, RwareEnvironment, ForagingEnvironment, PettingZooEnvironment, \
-    MountainCarEnvironment
+    MountainCarEnvironment, PendulumEnvironment
 from agent_off_policy import SACAgent, SESACAgent
 from experience_replay import EpisodicExperienceReplay
 from utils import seed_everything
@@ -143,7 +143,6 @@ def create_of_policy_experiment(args) -> OffPolicyExperimenter:
     auto_alpha: bool = args.auto_alpha
     alpha: float = args.alpha
     value_function_type: str = args.value_function_type
-    
 
     assert (agent_type in implemented_agent_types)
 
@@ -158,6 +157,8 @@ def create_of_policy_experiment(args) -> OffPolicyExperimenter:
         env = PettingZooEnvironment(env_name="waterworld", max_steps=episode_max_length)
     elif "mountaincar" in env_name.lower():
         env = MountainCarEnvironment()
+    elif "pendulum" in env_name.lower():
+        env = PendulumEnvironment()
     else:
         env = ProjectBaseEnv()
 
@@ -177,7 +178,8 @@ def create_of_policy_experiment(args) -> OffPolicyExperimenter:
         for agent_id in env.agents:
             agent = SACAgent(env.observation_shapes[agent_id], env.action_shapes[agent_id],
                              capacity=capacity, device=device, batch_size=batch_size, n_steps=n_steps,
-                             is_discrete=is_discrete, alpha=alpha, auto_alpha=auto_alpha, value_function_type=value_function_type)
+                             is_discrete=is_discrete, alpha=alpha, auto_alpha=auto_alpha,
+                             value_function_type=value_function_type)
             agent_list.append(agent)
     # SESAC agent which is just ISAC but with shared experience replay buffer.
     # Init with mem reference and proportional capacity.
@@ -186,7 +188,8 @@ def create_of_policy_experiment(args) -> OffPolicyExperimenter:
         for agent_id in env.agents:
             agent = SESACAgent(mem, env.observation_shapes[agent_id], env.action_shapes[agent_id],
                                capacity=capacity * len(env.agents), device=device, batch_size=batch_size,
-                               n_steps=n_steps, is_discrete=is_discrete, alpha=alpha, auto_alpha=auto_alpha, value_function_type=value_function_type)
+                               n_steps=n_steps, is_discrete=is_discrete, alpha=alpha, auto_alpha=auto_alpha,
+                               value_function_type=value_function_type)
             if len(agent_list) == 0:
                 mem = agent.memory
             agent_list.append(agent)
