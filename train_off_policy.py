@@ -7,9 +7,9 @@ from experimenter_off_policy import create_of_policy_experiment
 
 if __name__ == "__main__":
     argparser = argparse.ArgumentParser()
-    argparser.add_argument("--env", type=str, default="mountaincar",
+    argparser.add_argument("--env", type=str, default="pendulum",
                            choices=["multiwalker", "waterworld", "rware-tiny-4ag-v1", "Foraging-10x10-3p-3f-v2",
-                                    "rware-tiny-4ag-easy-v1"])
+                                    "rware-tiny-4ag-easy-v1", "pendulum"])
     argparser.add_argument("--agent_type", type=str, default="ISAC",
                            choices=["ISAC", "SESAC"])
     argparser.add_argument("--episode_max_length", type=int, default=None)
@@ -25,7 +25,7 @@ if __name__ == "__main__":
 
     argparser.add_argument("--update_frequency", type=int, default=1,
                            help="Number of episodes between updates")  # allows multiple episodes to be used for a single update
-    argparser.add_argument("--num_gradient_steps", type=int, default=3)
+    argparser.add_argument("--num_gradient_steps", type=int, default=10)
     argparser.add_argument("--batch_size", type=int, default=128)
     argparser.add_argument("--verbose", type=int, default=0, choices=[0, 1, 2])
 
@@ -33,7 +33,7 @@ if __name__ == "__main__":
 
     argparser.add_argument("--n_steps", type=int, default=0) # only for logging purposes
     
-    argparser.add_argument("--alpha", type=float, default=0.2)
+    argparser.add_argument("--alpha", type=float, default=0.1)
     argparser.add_argument("--auto_alpha", default=True, type=lambda x: (str(x).lower() == 'true'))
     
     argparser.add_argument("--value_function_type", type=str, default="Q", choices=["Q", "V"], help="Q(s, a) or V(s)")
