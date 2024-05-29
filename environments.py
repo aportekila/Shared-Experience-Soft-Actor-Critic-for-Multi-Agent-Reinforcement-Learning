@@ -35,8 +35,9 @@ class ProjectBaseEnv(ParallelEnv):
     def render(self):
         raise NotImplementedError("Must be implemented in subclass")
 
+
 class MountainCarEnvironment(ProjectBaseEnv):
-    def __init__(self,**kwargs):
+    def __init__(self, **kwargs):
         self.env = gym.make('MountainCarContinuous-v0')
         self.is_discrete = False
         self.possible_agents = [f"agent"]
@@ -91,7 +92,7 @@ class MountainCarEnvironment(ProjectBaseEnv):
 
 
 class PendulumEnvironment(ProjectBaseEnv):
-    def __init__(self,**kwargs):
+    def __init__(self, **kwargs):
         self.env = gym.make('Pendulum-v1')
         self.is_discrete = False
         self.possible_agents = [f"agent"]
@@ -144,10 +145,14 @@ class PendulumEnvironment(ProjectBaseEnv):
     def render(self):
         self.env.render()
 
+
 class RwareEnvironment(ProjectBaseEnv):
     def __init__(self, env_name='rware-tiny-4ag-v1', **kwargs):
         if kwargs["max_steps"] is None:
             kwargs.pop("max_steps")
+
+        render = kwargs.pop("render") or False
+        self.should_render = render
         self.env = gym.make(env_name, **kwargs)
         self.is_discrete = True
         self.possible_agents = [f"agent_{i}" for i in range(self.env.n_agents)]
@@ -201,6 +206,9 @@ class RwareEnvironment(ProjectBaseEnv):
         if any(terminateds.values()) or any(trancateds.values()):
             self.agents = []
 
+        if self.should_render:
+            self.render()
+
         return observations, rewards, terminateds, trancateds, infos
 
     def render(self):
@@ -212,6 +220,8 @@ class ForagingEnvironment(ProjectBaseEnv):
     def __init__(self, env_name='Foraging-10x10-3p-3f-v2', **kwargs):
         if kwargs["max_steps"] is None:
             kwargs.pop("max_steps")
+        render = kwargs.pop("render") or False
+        self.should_render = render
         self.env = gym.make(env_name, **kwargs)
         self.is_discrete = True
         self.possible_agents = [f"agent_{i}" for i in range(self.env.n_agents)]
@@ -265,19 +275,25 @@ class ForagingEnvironment(ProjectBaseEnv):
         if any(terminateds.values()) or any(trancateds.values()):
             self.agents = []
 
+        if self.should_render:
+            self.render()
+
         return observations, rewards, terminateds, trancateds, infos
 
     def render(self):
         self.env.render()
 
+
 class PettingZooEnvironment(ProjectBaseEnv):
     def __init__(self, **kwargs):
         env_name = kwargs.pop("env_name")
         max_steps = kwargs.pop("max_steps") or 500
+        render = kwargs.pop("render") or False
+        render_mode = "human" if render else None
         if env_name == "multiwalker":
-            self.env = multiwalker_v9.parallel_env(max_cycles=max_steps, shared_reward=False)
+            self.env = multiwalker_v9.parallel_env(max_cycles=max_steps, shared_reward=False, render_mode=render_mode)
         elif env_name == "waterworld":
-            self.env = waterworld_v4.parallel_env(max_cycles=max_steps)
+            self.env = waterworld_v4.parallel_env(max_cycles=max_steps, render_mode=render_mode)
         else:
             raise ValueError("Invalid environment name")
         self.env.reset()
