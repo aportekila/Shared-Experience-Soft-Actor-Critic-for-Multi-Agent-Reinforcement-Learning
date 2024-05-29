@@ -6,9 +6,9 @@ from environments import RwareEnvironment, ForagingEnvironment, PettingZooEnviro
 
 if __name__ == "__main__":
     argparser = argparse.ArgumentParser()
-    argparser.add_argument("--env", type=str, default="multiwalker")
+    argparser.add_argument("--env", type=str, default="waterworld")
     argparser.add_argument("--seed", type=int, default=0)
-    argparser.add_argument("--algo", type=str, default="IAC", choices=["IAC", "SNAC", "SEAC", "ISAC"])
+    argparser.add_argument("--algo", type=str, default="SEAC", choices=["IAC", "SNAC", "SEAC", "ISAC"])
     argparser.add_argument("--episode_max_length", type=int, default=200)
 
     args = argparser.parse_args()
@@ -66,7 +66,7 @@ if __name__ == "__main__":
         for agent_id in env.agents:
             agent = SEACAgent(env.observation_shapes[agent_id], env.action_shapes[agent_id],
                               capacity=agent_args["buffer_size"], device=agent_args["device"],
-                              agent_list=agent_list, lambda_value=agent_args["se_lambda_value"],
+                              agent_list=agent_list, lambda_value=agent_args["SEAC_lambda_value"],
                               batch_size=agent_args["batch_size"],
                               n_steps=agent_args["n_steps"], is_discrete=is_discrete)
             agent_list.append(agent)
