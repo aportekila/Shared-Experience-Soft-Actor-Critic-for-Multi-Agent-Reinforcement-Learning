@@ -141,8 +141,8 @@ class SACAgent(object):
                 self.alpha_optimizer.step()
                 self.alpha = torch.clamp(self.log_alpha.detach().exp(), 0, 1).item()
 
-            print(
-                f'Actor Loss: {actor_loss.item():.5f} | Critic Loss: {critic_loss.item():.5f} | Q: {q.mean().item():.5f} | Entropy: {-log_probs.mean().item():.5f}')
+            # print(
+            #     f'Actor Loss: {actor_loss.item():.5f} | Critic Loss: {critic_loss.item():.5f} | Q: {q.mean().item():.5f} | Entropy: {-log_probs.mean().item():.5f}')
             self.soft_update()
 
     def save(self, path):
@@ -183,17 +183,28 @@ class SESACAgent(SACAgent):
 
         # Implemented by iterating over batch_size and drawing according to lambda, such a single batch is not
         # comprised of only own experience or only shared.
-        states, actions, rewards, next_states, dones = [], [], [], [], []
-        for _ in range(batch_size):
-            if np.random.rand() < self.shared_sample_rate:
-                memory = self.memory.sample(1)
-            else:
-                memory = self.memory_dict[np.random.choice(list(self.memory_dict.keys()))].sample(1)
-            state, action, reward, next_state, done = memory
-            states.append(state)
-            actions.append(action)
-            rewards.append(reward)
-            next_states.append(next_state)
-            dones.append(done)
-        return (torch.cat(states, dim=0), torch.cat(actions, dim=0), torch.cat(rewards, dim=0),
-                torch.cat(next_states, dim=0), torch.cat(dones, dim=0))
+        n_self = int(batch_size * (1 - self.shared_sample_rate))
+        n_shared = batch_size - n_self
+        n_shared_per_agent = n_shared // (len(self.memory_dict) - 1)
+        
+        self_states, self_actions, self_rewards, self_next_states, self_dones = self.memory.sample_tensor(n_self, self.device)
+        other_states, other_actions, other_rewards, other_next_states, other_dones = [], [], [], [], []
+        
+        for agent_id, memory in self.memory_dict.items():
+            if agent_id == self.agent_id:
+                continue
+            states, actions, rewards, next_states, dones = memory.sample_tensor(n_shared_per_agent, self.device)
+            other_states.append(states)
+            other_actions.append(actions)
+            other_rewards.append(rewards)
+            other_next_states.append(next_states)
+            other_dones.append(dones)
+            
+        states = torch.cat([self_states] + other_states, dim=0)
+        actions = torch.cat([self_actions] + other_actions, dim=0)
+        rewards = torch.cat([self_rewards] + other_rewards, dim=0)
+        next_states = torch.cat([self_next_states] + other_next_states, dim=0)
+        dones = torch.cat([self_dones] + other_dones, dim=0)
+        
+        return states, actions, rewards, next_states, dones
+        

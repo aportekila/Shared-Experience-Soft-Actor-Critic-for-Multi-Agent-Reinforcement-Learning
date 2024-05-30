@@ -220,7 +220,7 @@ class ForagingEnvironment(ProjectBaseEnv):
     def __init__(self, env_name='Foraging-10x10-3p-3f-v2', **kwargs):
         if kwargs["max_steps"] is None:
             kwargs.pop("max_steps")
-        render = kwargs.pop("render") or False
+        render = False #kwargs.pop("render") or False
         self.should_render = render
         self.env = gym.make(env_name, **kwargs)
         self.is_discrete = True
@@ -288,7 +288,7 @@ class PettingZooEnvironment(ProjectBaseEnv):
     def __init__(self, **kwargs):
         env_name = kwargs.pop("env_name")
         max_steps = kwargs.pop("max_steps") or 500
-        render = kwargs.pop("render") or False
+        render = False #kwargs.pop("render") or False
         render_mode = "human" if render else None
         if env_name == "multiwalker":
             self.env = multiwalker_v9.parallel_env(max_cycles=max_steps, shared_reward=False, render_mode=render_mode)
