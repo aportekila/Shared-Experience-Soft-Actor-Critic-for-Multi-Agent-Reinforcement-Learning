@@ -186,10 +186,11 @@ class SESACAgent(SACAgent):
         n_self = int(batch_size * (1 - self.shared_sample_rate))
         n_shared = batch_size - n_self
         n_shared_per_agent = n_shared // (len(self.memory_dict) - 1)
-        
-        self_states, self_actions, self_rewards, self_next_states, self_dones = self.memory.sample_tensor(n_self, self.device)
+
+        self_states, self_actions, self_rewards, self_next_states, self_dones = self.memory.sample_tensor(n_self,
+                                                                                                          self.device)
         other_states, other_actions, other_rewards, other_next_states, other_dones = [], [], [], [], []
-        
+
         for agent_id, memory in self.memory_dict.items():
             if agent_id == self.agent_id:
                 continue
@@ -199,12 +200,11 @@ class SESACAgent(SACAgent):
             other_rewards.append(rewards)
             other_next_states.append(next_states)
             other_dones.append(dones)
-            
+
         states = torch.cat([self_states] + other_states, dim=0)
         actions = torch.cat([self_actions] + other_actions, dim=0)
         rewards = torch.cat([self_rewards] + other_rewards, dim=0)
         next_states = torch.cat([self_next_states] + other_next_states, dim=0)
         dones = torch.cat([self_dones] + other_dones, dim=0)
-        
+
         return states, actions, rewards, next_states, dones
-        

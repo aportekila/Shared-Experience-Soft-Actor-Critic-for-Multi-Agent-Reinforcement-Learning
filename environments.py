@@ -13,7 +13,6 @@ from pettingzoo.sisl import waterworld_v4
 
 
 class ProjectBaseEnv(ParallelEnv):
-    # I think this abstractmethod thing helps IDE not complain
     @abstractmethod
     def __init__(self, **kwargs):
         self.env: gym.Env = None
@@ -147,11 +146,10 @@ class PendulumEnvironment(ProjectBaseEnv):
 
 
 class RwareEnvironment(ProjectBaseEnv):
-    def __init__(self, env_name='rware-tiny-4ag-v1', **kwargs):
+    def __init__(self, env_name='rware-tiny-4ag-v1', render=False, **kwargs):
         if kwargs["max_steps"] is None:
             kwargs.pop("max_steps")
 
-        render = kwargs.pop("render") or False
         self.should_render = render
         self.env = gym.make(env_name, **kwargs)
         self.is_discrete = True
@@ -217,10 +215,9 @@ class RwareEnvironment(ProjectBaseEnv):
 
 class ForagingEnvironment(ProjectBaseEnv):
 
-    def __init__(self, env_name='Foraging-10x10-3p-3f-v2', **kwargs):
+    def __init__(self, env_name='Foraging-10x10-3p-3f-v2', render=False, **kwargs):
         if kwargs["max_steps"] is None:
             kwargs.pop("max_steps")
-        render = False #kwargs.pop("render") or False
         self.should_render = render
         self.env = gym.make(env_name, **kwargs)
         self.is_discrete = True
@@ -285,10 +282,9 @@ class ForagingEnvironment(ProjectBaseEnv):
 
 
 class PettingZooEnvironment(ProjectBaseEnv):
-    def __init__(self, **kwargs):
+    def __init__(self, render=False, **kwargs):
         env_name = kwargs.pop("env_name")
         max_steps = kwargs.pop("max_steps") or 500
-        render = False #kwargs.pop("render") or False
         render_mode = "human" if render else None
         if env_name == "multiwalker":
             self.env = multiwalker_v9.parallel_env(max_cycles=max_steps, shared_reward=False, render_mode=render_mode)

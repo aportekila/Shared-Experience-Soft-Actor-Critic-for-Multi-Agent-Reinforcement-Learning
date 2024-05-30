@@ -50,10 +50,9 @@ class ACAgent(object):
 
     def remember(self, state, action, reward, next_state, done):
         self.memory.push(state, action, reward, next_state, int(done))
-        
+
     def remember_tuple(self, transition):
         self.memory.push(*transition)
-        
 
     def calculate_loss_terms(self, states, actions, rewards, next_states, dones) -> Tuple[
         torch.Tensor, torch.Tensor, torch.Tensor]:
@@ -62,14 +61,15 @@ class ACAgent(object):
             log_props = dist.log_prob(actions).view(self.batch_size, -1)
         else:
             log_props = dist.log_prob(actions.clamp(-1 + 1e-6, 1 - 1e-6)).view(self.batch_size, -1)
-        entropy = - log_props # TODO: justify
+        entropy = - log_props
         state_values = self.critic.forward(states)
 
         with torch.no_grad():
             next_state_values = self.critic.forward(next_states)
 
         # Estimate advantage
-        advantages = rewards.view(-1, 1) + (1 - dones.view(-1, 1)) * (self.gamma ** self.n_steps) * next_state_values - state_values
+        advantages = rewards.view(-1, 1) + (1 - dones.view(-1, 1)) * (
+                self.gamma ** self.n_steps) * next_state_values - state_values
 
         return log_props, entropy, advantages
 
@@ -98,7 +98,6 @@ class ACAgent(object):
             critic_loss.backward()
             self.critic_optimizer.step()
 
-
     def save(self, path):
         params = {
             'actor': self.actor.state_dict(),
@@ -110,6 +109,7 @@ class ACAgent(object):
         params = torch.load(path, map_location=self.device)
         self.actor.load_state_dict(params['actor'])
         self.critic.load_state_dict(params['critic'])
+
 
 class SEACAgent(ACAgent):
     def __init__(self, obs_shape, action_shape, capacity, device, agent_list, lambda_value=1.0, **kwargs):
@@ -134,7 +134,8 @@ class SEACAgent(ACAgent):
                                                                               dones)
                     importance_weight = (log_props.exp() / (log_props_i.exp() + 1e-7)).detach()
                     actor_loss += self.lambda_value * (importance_weight * -log_props * advantages_i.detach()).mean()
-                    critic_loss += self.value_loss_coeff * self.lambda_value * (importance_weight * torch.square(advantages_i)).mean()
+                    critic_loss += self.value_loss_coeff * self.lambda_value * (
+                            importance_weight * torch.square(advantages_i)).mean()
 
             self.actor_optimizer.zero_grad()
             actor_loss.backward()
@@ -146,6 +147,7 @@ class SEACAgent(ACAgent):
             torch.nn.utils.clip_grad_norm_(self.critic.parameters(), self.grad_clip)
             self.critic_optimizer.step()
 
+
 class SNACAgent(ACAgent):
     def __init__(self, obs_shape, action_shape, capacity, device, master, agent_list, **kwargs):
         super(SNACAgent, self).__init__(obs_shape, action_shape, capacity, device, **kwargs)
@@ -153,13 +155,15 @@ class SNACAgent(ACAgent):
         self.master = master
         if not self.master is None:
             self.actor = self.master.actor
+
     def learn(self, num_steps=50):
         if self.master is None:
             for it in range(num_steps):
                 actor_loss = torch.zeros(1)
                 critic_loss = torch.zeros(1)
                 for agent in self.agent_list:
-                    states, actions, rewards, next_states, dones = agent.memory.sample_tensor(self.batch_size, self.device)
+                    states, actions, rewards, next_states, dones = agent.memory.sample_tensor(self.batch_size,
+                                                                                              self.device)
 
                     _actor_loss, _critic_loss = self.calculate_loss(states, actions, rewards, next_states, dones)
                     actor_loss += _actor_loss

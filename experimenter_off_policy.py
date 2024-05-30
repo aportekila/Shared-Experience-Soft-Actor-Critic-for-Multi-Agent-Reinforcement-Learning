@@ -45,7 +45,6 @@ class OffPolicyExperimenter(object):
 
             next_states, rewards, terminated, truncated, info = self.env.step(list(actions.values()))
 
-            # I hope truncated actually works
             done = np.all(list(terminated.values())) or np.all(list(truncated.values()))
 
             if training:
@@ -184,7 +183,7 @@ def create_of_policy_experiment(args) -> OffPolicyExperimenter:
     # SESAC agent which is just ISAC but with shared experience replay buffer.
     # Init with mem reference and proportional capacity.
     elif agent_type == "SESAC":
-        mem_dict = {}  # None results in ISAC initialization
+        mem_dict = {}
         for agent_id in env.agents:
             agent = SESACAgent(mem_dict, env.observation_shapes[agent_id], env.action_shapes[agent_id],
                                capacity=capacity * len(env.agents), device=device, batch_size=batch_size,

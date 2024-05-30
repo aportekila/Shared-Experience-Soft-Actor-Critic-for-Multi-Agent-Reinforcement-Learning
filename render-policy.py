@@ -2,13 +2,14 @@ import argparse
 import json
 
 from agent import ACAgent, SNACAgent, SEACAgent
+from agent_off_policy import SACAgent, SESACAgent
 from environments import RwareEnvironment, ForagingEnvironment, PettingZooEnvironment
 
 if __name__ == "__main__":
     argparser = argparse.ArgumentParser()
-    argparser.add_argument("--env", type=str, default="waterworld")
+    argparser.add_argument("--env", type=str, default="multiwalker")
     argparser.add_argument("--seed", type=int, default=0)
-    argparser.add_argument("--algo", type=str, default="SEAC", choices=["IAC", "SNAC", "SEAC", "ISAC"])
+    argparser.add_argument("--algo", type=str, default="SNAC", choices=["IAC", "SNAC", "SEAC", "ISAC"])
     argparser.add_argument("--episode_max_length", type=int, default=200)
 
     args = argparser.parse_args()
@@ -35,9 +36,7 @@ if __name__ == "__main__":
     agent_type = args.algo
     agent_list = []
     agent_args = json.load(open(f"logs/{args.env}/{args.algo}/5/{args.seed}/args.json"))
-    print(agent_args)
 
-    # Individual agents with no access to each other
     if agent_type == "IAC":
         for agent_id in env.agents:
             agent = ACAgent(env.observation_shapes[agent_id], env.action_shapes[agent_id],
@@ -45,8 +44,6 @@ if __name__ == "__main__":
                             batch_size=agent_args["batch_size"],
                             n_steps=agent_args["n_steps"], is_discrete=is_discrete)
             agent_list.append(agent)
-
-    # Agents use a single actor network, and the master calculates loss from all memories
     elif agent_type == "SNAC":
         num_agents = len(env.agents)
         master = SNACAgent(env.observation_shapes[env.agents[0]], env.action_shapes[env.agents[0]],
@@ -70,10 +67,27 @@ if __name__ == "__main__":
                               batch_size=agent_args["batch_size"],
                               n_steps=agent_args["n_steps"], is_discrete=is_discrete)
             agent_list.append(agent)
+    elif agent_type == "ISAC":
+        for agent_id in env.agents:
+            agent = SACAgent(env.observation_shapes[agent_id], env.action_shapes[agent_id],
+                             capacity=agent_args["buffer_size"], device=agent_args["device"],
+                             batch_size=agent_args["batch_size"], is_discrete=is_discrete, auto_alpha=False,
+                             value_function_type="Q")
+            agent_list.append(agent)
+    elif agent_type == "SESAC":
+        for agent_id in env.agents:
+            agent = SESACAgent({}, env.observation_shapes[agent_id], env.action_shapes[agent_id],
+                               capacity=agent_args["buffer_size"], device=agent_args["device"],
+                               batch_size=agent_args["batch_size"], is_discrete=is_discrete, auto_alpha=False,
+                               value_function_type="Q")
+            agent_list.append(agent)
+    else:
+        raise NotImplementedError
 
     for agent_id, agent in enumerate(agent_list):
         agent.load(f"logs/{args.env}/{args.algo}/5/{args.seed}/agent_{agent_id}.pth")
 
+    # Let the user cancel the render by pressing Ctrl+C
     while True:
         states, info = env.reset()
         while env.agents:

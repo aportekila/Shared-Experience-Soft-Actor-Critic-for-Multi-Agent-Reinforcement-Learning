@@ -9,6 +9,7 @@ from torch.distributions import (
     Categorical
 )
 
+
 class CriticValueNet(nn.Module):
     def __init__(self, state_size, hidden_size=64):
         super(CriticValueNet, self).__init__()
@@ -31,13 +32,15 @@ class CriticValueNet(nn.Module):
 
     def forward(self, x):
         return self.arch(x)
-    
+
+
 class CriticNet(CriticValueNet):
     def __init__(self, state_size, action_size, hidden_size=64):
         super(CriticNet, self).__init__(state_size + action_size, hidden_size)
 
 
 from torch.distributions.transforms import TanhTransform
+
 
 class SquashedGaussianHead(nn.Module):
     def __init__(self, n, upper_clamp=-2.0):
@@ -47,13 +50,14 @@ class SquashedGaussianHead(nn.Module):
 
     def forward(self, x):
         mean_bt = x[..., : self._n]
-        log_var_bt = (x[..., self._n :]).clamp(-10, -self._upper_clamp)  # clamp added
+        log_var_bt = (x[..., self._n:]).clamp(-10, -self._upper_clamp)  # clamp added
         std_bt = log_var_bt.exp().sqrt()
         dist_bt = Normal(mean_bt, std_bt)
         transform = TanhTransform(cache_size=1)
         dist = TransformedDistribution(dist_bt, transform)
         return dist
-    
+
+
 class ActorPolicyNet(nn.Module):
     def __init__(self, state_size, action_size, hidden_size=64, is_discrete=True):
         super(ActorPolicyNet, self).__init__()
@@ -64,7 +68,7 @@ class ActorPolicyNet(nn.Module):
             nn.ReLU(),
             nn.Linear(hidden_size, hidden_size),
             nn.ReLU(),
-            nn.Linear(hidden_size, action_size if is_discrete else 2 *action_size)
+            nn.Linear(hidden_size, action_size if is_discrete else 2 * action_size)
         )
 
         self.init_weights()

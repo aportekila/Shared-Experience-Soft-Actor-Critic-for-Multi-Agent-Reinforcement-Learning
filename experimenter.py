@@ -48,7 +48,6 @@ class Experimenter(object):
 
             next_states, rewards, terminated, truncated, info = self.env.step(list(actions.values()))
 
-            # I hope truncated actually works
             done = np.all(list(terminated.values())) or np.all(list(truncated.values()))
 
             if training:
@@ -188,7 +187,6 @@ def create_experiment(args) -> Experimenter:
                             capacity=capacity, device=device, batch_size=batch_size,
                             n_steps=n_steps, is_discrete=is_discrete)
             agent_list.append(agent)
-
     # Agents use a single actor network, and the master calculates loss from all memories
     elif agent_type == "SNAC":
         num_agents = len(env.agents)

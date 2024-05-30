@@ -19,22 +19,18 @@ SMOOTH_DICT = {
     'multiwalker': 30
 }
 
-
-
 if __name__ == "__main__":
     argparser = argparse.ArgumentParser()
     argparser.add_argument("--env", type=str, default="Foraging-10x10-3p-3f-v2")
     argparser.add_argument("--smoothing", type=int, default=30)
-    
 
     args = argparser.parse_args()
-    
+
     envs = ['pendulum', 'waterworld', 'multiwalker']
 
     for args.env in envs:
         args.smoothing = SMOOTH_DICT[args.env]
-        
-            
+
         # We will load this from the logs
         total_env_steps = None
 
