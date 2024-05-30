@@ -190,7 +190,7 @@ def create_of_policy_experiment(args) -> OffPolicyExperimenter:
                                capacity=capacity * len(env.agents), device=device, batch_size=batch_size,
                                n_steps=n_steps, is_discrete=is_discrete, alpha=alpha, auto_alpha=auto_alpha,
                                value_function_type=value_function_type)
-
+            agent.agent_id = agent_id
             mem_dict[agent_id] = agent.memory
             agent_list.append(agent)
 
